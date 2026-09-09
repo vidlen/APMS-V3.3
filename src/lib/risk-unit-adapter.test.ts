@@ -3,11 +3,10 @@
  * -----------------------------------------------------------------------------
  * Pins the adapter's data-authenticity and derived-field logic against the
  * real 06/24 sample-unit files - section 0.6's pciIsReal split, plus the
- * repaired-unit count, corrected 2026-08-28 after fixing a sample-unit
- * numbering mismatch between the 2025 and 2026 06/24 survey files (the 2026
- * squares had been walked/labelled in the opposite direction along the
- * runway; metode-b-spec_4.md section 7.3's "65 of 300 units" was computed
- * against that pre-fix data and is stale).
+ * repaired-unit count, with RWY 06/24 sample-unit data aligned to the user's
+ * cross-year Markov workbook (workbook row 1 maps to sample unit 1, so the
+ * previously reversed 300-to-1 survey payloads have been moved without
+ * changing unit identities or geometry).
  * -----------------------------------------------------------------------------
  */
 
@@ -27,6 +26,31 @@ test('pciIsReal is true only for 06/24 and 07L/25R', () => {
   assert.equal(isPciReal('07L/25R'), true);
   assert.equal(isPciReal('NP2'), false);
   assert.equal(isPciReal('Apron A'), false);
+});
+
+test('RWY 06/24 endpoint survey payloads follow the Markov workbook sample-unit direction', () => {
+  const expected = [
+    { year: 2023, unit1Pci: 100, unit300Pci: 100 },
+    { year: 2024, unit1Pci: 100, unit300Pci: 100 },
+    { year: 2025, unit1Pci: 100, unit300Pci: 99 },
+    { year: 2026, unit1Pci: 99, unit300Pci: 100 },
+  ];
+
+  for (const { year, unit1Pci, unit300Pci } of expected) {
+    const fc = loadFc(`../../public/data/runway-06-24-units-${year}.json`);
+    const unit1 = fc.features.find((feature) => feature.properties.sampleUnit === 1);
+    const unit300 = fc.features.find((feature) => feature.properties.sampleUnit === 300);
+    assert.equal(unit1?.properties.pci_score, unit1Pci, `${year} unit 1 PCI`);
+    assert.equal(unit300?.properties.pci_score, unit300Pci, `${year} unit 300 PCI`);
+  }
+
+  const fc2026 = loadFc('../../public/data/runway-06-24-units-2026.json');
+  const unit1 = fc2026.features.find((feature) => feature.properties.sampleUnit === 1);
+  const unit300 = fc2026.features.find((feature) => feature.properties.sampleUnit === 300);
+  assert.deepEqual(unit1?.properties.distresses, [
+    { type: 'Raveling', severity: 'Low', quantity: 0.06, quantityUnits: 'SqM', deduct: 1 },
+  ]);
+  assert.deepEqual(unit300?.properties.distresses, []);
 });
 
 test('polygonAreaM2 on a real 06/24 unit polygon lands in the surveyed 560-604 m2 range', () => {
@@ -60,7 +84,7 @@ test('every unit from the real-PCI branch is flagged pciIsReal, and carries a de
   }
 });
 
-test('astmConsistent flags exactly one unit across the whole network: 06/24 2025 unit 215', () => {
+test('astmConsistent flags exactly one unit across the whole network: 06/24 2025 unit 86', () => {
   const fc2025 = loadFc('../../public/data/runway-06-24-units-2025.json');
   const fc2024 = loadFc('../../public/data/runway-06-24-units-2024.json');
   const fc2026 = loadFc('../../public/data/runway-06-24-units-2026.json');
@@ -73,7 +97,7 @@ test('astmConsistent flags exactly one unit across the whole network: 06/24 2025
   const flagged = [...inputs2025, ...inputs2026, ...inputsRwy2].filter((i) => !i.astmConsistent);
   assert.equal(flagged.length, 1);
   assert.equal(flagged[0].branchId, '06/24');
-  assert.equal(flagged[0].unitNumber, 215);
+  assert.equal(flagged[0].unitNumber, 86);
 });
 
 test('an unrecognised quantityUnits value throws rather than silently converting', () => {

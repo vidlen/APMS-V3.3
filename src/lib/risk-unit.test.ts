@@ -293,19 +293,15 @@ test('12. the five pinned variant-comparison units land on their documented degr
     return result.band.degree;
   }
 
-  // Unit 86's 2025-vs-2024 pin was 4/1 before fixing 2025's sample-unit
-  // alignment (confirmed against the user's cross-year Markov worksheet):
-  // 2025's own survey walked the runway in the opposite physical direction
-  // from 2023/2024/2026, so the pre-fix comparison paired unit 86 in 2025
-  // against an unrelated physical square in 2024. Correctly paired, unit 86
-  // shows only a minor PCI drop (100 -> 92.56, raveling + L&T cracking) -
-  // degree 1 on both sources, not the mismatched pair's degree 4.
-  assert.equal(degreeFor('06/24', 2025, 2024, 86, 'tdv'), 1);
-  assert.equal(degreeFor('06/24', 2025, 2024, 86, 'pci'), 1);
-  assert.equal(degreeFor('06/24', 2026, 2025, 288, 'tdv'), 4);
-  assert.equal(degreeFor('06/24', 2026, 2025, 288, 'pci'), 2);
-  assert.equal(degreeFor('06/24', 2026, 2025, 43, 'tdv'), 4);
-  assert.equal(degreeFor('06/24', 2026, 2025, 43, 'pci'), 2);
+  // RWY 06/24 data follows the Markov workbook's 1-to-300 direction. These
+  // pins moved with the complete survey payload (PCI, rating and distresses),
+  // while the sample-unit identities and geometries stayed fixed.
+  assert.equal(degreeFor('06/24', 2025, 2024, 215, 'tdv'), 1);
+  assert.equal(degreeFor('06/24', 2025, 2024, 215, 'pci'), 1);
+  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'tdv'), 4);
+  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'pci'), 2);
+  assert.equal(degreeFor('06/24', 2026, 2025, 258, 'tdv'), 4);
+  assert.equal(degreeFor('06/24', 2026, 2025, 258, 'pci'), 2);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'tdv'), 5);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'pci'), 2);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'tdv'), 5);
