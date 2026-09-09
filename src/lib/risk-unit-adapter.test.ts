@@ -70,9 +70,7 @@ test('astmConsistent flags exactly one unit across the whole network: 06/24 2025
   const flagged = [...inputs2025, ...inputs2026, ...inputsRwy2].filter((i) => !i.astmConsistent);
   assert.equal(flagged.length, 1);
   assert.equal(flagged[0].branchId, '06/24');
-  // Was unit 215 before fixing the unit-1/300 swap vs. PAVER's numbering
-  // (unit 1 = threshold 24 end); same physical unit, mirrored label (301-215).
-  assert.equal(flagged[0].unitNumber, 86);
+  assert.equal(flagged[0].unitNumber, 215);
 });
 
 test('an unrecognised quantityUnits value throws rather than silently converting', () => {

@@ -293,15 +293,12 @@ test('12. the five pinned variant-comparison units land on their documented degr
     return result.band.degree;
   }
 
-  // Unit numbers mirrored (301 - old) after fixing sample-unit 1/300 being
-  // swapped end-to-end vs. PAVER's numbering (unit 1 = threshold 24 end) -
-  // same physical units, same documented degrees, new labels.
-  assert.equal(degreeFor('06/24', 2025, 2024, 86, 'tdv'), 4);
-  assert.equal(degreeFor('06/24', 2025, 2024, 86, 'pci'), 1);
-  assert.equal(degreeFor('06/24', 2026, 2025, 288, 'tdv'), 4);
-  assert.equal(degreeFor('06/24', 2026, 2025, 288, 'pci'), 2);
-  assert.equal(degreeFor('06/24', 2026, 2025, 43, 'tdv'), 4);
-  assert.equal(degreeFor('06/24', 2026, 2025, 43, 'pci'), 2);
+  assert.equal(degreeFor('06/24', 2025, 2024, 215, 'tdv'), 4);
+  assert.equal(degreeFor('06/24', 2025, 2024, 215, 'pci'), 1);
+  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'tdv'), 4);
+  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'pci'), 2);
+  assert.equal(degreeFor('06/24', 2026, 2025, 258, 'tdv'), 4);
+  assert.equal(degreeFor('06/24', 2026, 2025, 258, 'pci'), 2);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'tdv'), 5);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'pci'), 2);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'tdv'), 5);
