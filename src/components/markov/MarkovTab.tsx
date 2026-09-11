@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronUp, Sigma } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { MARKOV_CLASS_LABELS, MARKOV_PARAMS } from "@/config/markovParams";
 import { computeMarkov, type MarkovResult, type MarkovVariant } from "@/lib/markov";
 import VariantToggle from "./VariantToggle";
@@ -110,8 +110,7 @@ export default function MarkovTab() {
     <main className="mx-auto max-w-6xl space-y-7 px-4 py-6 sm:px-6 sm:py-8">
       <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-primary"><Sigma size={18} aria-hidden="true" /><span className="text-[11px] font-semibold uppercase tracking-[0.16em]">RWY 06/24</span></div>
-          <h2 className="mt-2 font-condensed text-2xl font-semibold tracking-tight text-foreground">Markov Projection</h2>
+          <h2 className="font-condensed text-2xl font-semibold tracking-tight text-foreground">Markov Projection</h2>
           <p className="mt-1 max-w-[72ch] text-sm leading-relaxed text-muted-foreground">Network condition projection from the 2025 to 2026 PCI transition. Year 2026 is the anchor and the horizon ends in 2031.</p>
         </div>
         <VariantToggle value={variant} onChange={setVariant} />
