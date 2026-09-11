@@ -18,7 +18,7 @@ export default function ProjectionChart({ n8, dirichlet, activeVariant }: Projec
           <LineChart data={data} margin={{ top: 12, right: 16, left: 2, bottom: 8 }}>
             <CartesianGrid vertical={false} stroke="#334155" strokeDasharray="3 3" opacity={0.65} />
             <XAxis dataKey="year" tickLine={false} axisLine={false} tick={{ fill: "#cbd5e1", fontSize: 12 }} />
-            <YAxis domain={[70, 95]} ticks={[70, 75, 80, 85, 95]} width={38} tickLine={false} axisLine={false} tick={{ fill: "#cbd5e1", fontSize: 12 }} />
+            <YAxis domain={[70, 95]} ticks={[70, 75, 80, 85, 90, 95]} width={38} tickLine={false} axisLine={false} tick={{ fill: "#cbd5e1", fontSize: 12 }} />
             <Tooltip
               contentStyle={{ backgroundColor: "#ffffff", border: "1px solid #cbd5e1", borderRadius: 8, boxShadow: "0 8px 24px rgba(0, 0, 0, 0.18)" }}
               labelStyle={{ color: "#111827", fontWeight: 600 }}
