@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
-import { MARKOV_CLASS_LABELS, MARKOV_PARAMS } from "@/config/markovParams";
+import { MARKOV_PARAMS } from "@/config/markovParams";
 import { computeMarkov, type MarkovResult, type MarkovVariant } from "@/lib/markov";
 import VariantToggle from "./VariantToggle";
 import ClassDistributionPanel from "./ClassDistributionPanel";
@@ -133,7 +133,6 @@ export default function MarkovTab() {
 
       <section aria-labelledby="charts" className="space-y-3"><div><h3 id="charts" className="font-condensed text-lg font-semibold text-foreground">Charts</h3><p className="mt-1 text-sm text-muted-foreground">Visual summary of PCI and class-composition change across the horizon.</p></div><div className="grid gap-4 lg:grid-cols-2"><ProjectionChart n8={result.variants.n8.projection} dirichlet={result.variants.dirichlet.projection} activeVariant={variant} /><ClassCompositionChart projection={active} /></div></section>
 
-      <section aria-labelledby="limitations" className="rounded-lg border border-border bg-muted/25 p-4 sm:p-5"><h3 id="limitations" className="font-condensed text-lg font-semibold text-foreground">Limitations</h3><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-muted-foreground"><li>The matrix is built from one year pair, 2025 to 2026. No years remain for a hold-out check.</li><li>The pair also contains survey-coverage changes: 111 units lost all L&amp;T cracking records and 29 lost all alligator-cracking records between surveys.</li><li>Grouping PCI into 15-point classes removes within-class information, so the model rate is faster than the measured rate.</li><li>Four matrix rows, Poor through Failed, have no observations. They are entirely assumption-driven and no data can correct them.</li></ul><p className="mt-3 text-xs text-muted-foreground">Classes: {MARKOV_CLASS_LABELS.join(" · ")}</p></section>
     </main>
   );
 }
