@@ -1,4 +1,4 @@
-# APMS-V3.0
+# APMS-V3.3
 SHIAPMS is a dashboard for a web based Airport Pavement Management System (APMS) of Soekarno-Hatta Internatonal Airport (SHIA)	
 
 This project is created as a part of thesis defense for Author	
@@ -13,6 +13,10 @@ This tab features a layout of Soekarno-Hatta International Airport that consist 
 
 # Risk Management
 This tab feautures calculation of risk using two methods. One method is derived from Safety Management Manual and Safety Risk Matrix which are introduced in ICAO Doc 9859. The other method used is Fine-Kinney method which calculated risk using empirical equation.
+
+
+# PCI Prediction
+This tab feautures calculation of PCI prediction using Markov Chain. The tab uses two different method for calculating which are satndard markov and Bayesian Method (Dirichlet Smoothing) to tackle the short data spread.
 
 
 # Admin Page
