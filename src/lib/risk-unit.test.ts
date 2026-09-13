@@ -26,6 +26,7 @@ import {
   type UnitDistress,
   type UnitRiskInput,
 } from './risk-unit.ts';
+import { CONSEQUENCE_MATRIX } from '../config/riskScales.ts';
 import { observedRateClass } from './observed-rate.ts';
 import { comparableYears } from '../config/surveyRegimes.ts';
 import { bandFor } from './risk.ts';
@@ -104,17 +105,29 @@ const UNIT_221: UnitRiskInput = baseInput({
  * §3 - TDV, coverage, and PATCHING's new role.
  * ========================================================================== */
 
-test('2. PATCHING contributes to TDV and coverage, but never triggers consequence escalation', () => {
+test('2. PATCHING contributes to TDV and coverage; no distress ever escalates C', () => {
   // Section 6: unit 221's dominant distress by deduct is now PATCHING (2.7 > 1.0).
   assert.equal(totalDeductValue(UNIT_221.distresses), 3.7);
   assert.ok(coveragePct(UNIT_221.distresses) > 0);
   const result = scoreUnit(UNIT_221);
   assert.equal(result.dominantDistress, 'PATCHING');
-  // A patching-only-High unit must NOT escalate C (section 5.2) - only a
-  // non-PATCHING High-severity record triggers escalation.
   const patchHighOnly: UnitDistress[] = [{ type: 'PATCHING', severity: 'High', quantity: 100, quantityUnits: 'SqM', deduct: 50 }];
   const patched = scoreUnit(baseInput({ distresses: patchHighOnly, role: 'runway' }));
-  assert.equal(patched.consequence, 15); // base fod consequence, unescalated
+  assert.equal(patched.consequence, 15); // base fod consequence, no escalation
+});
+
+test('2b. a runway unit with High-severity raveling never escalates C past CONSEQUENCE_MATRIX.runway.fod', () => {
+  const ravelingHighOnly: UnitDistress[] = [{ type: 'RAVELING', severity: 'High', quantity: 100, quantityUnits: 'SqM', deduct: 50 }];
+  const result = scoreUnit(baseInput({ distresses: ravelingHighOnly, role: 'runway' }));
+  assert.equal(result.consequence, CONSEQUENCE_MATRIX.runway.fod);
+  assert.equal(result.consequence, 15);
+});
+
+test('2c. scoreUnits with no source argument uses the pci variant', () => {
+  const [withDefault] = scoreUnits([UNIT_16]);
+  const [withPci] = scoreUnits([UNIT_16], 'pci');
+  assert.equal(withDefault.likelihood, withPci.likelihood);
+  assert.equal(withDefault.likelihoodSource, 'pci');
 });
 
 /* =============================================================================
@@ -162,14 +175,14 @@ test('4b. observedRateClass is tidak_terdefinisi when either PCI is a display fi
   assert.equal(observedRateClass(70, 80, false, true, false, '06/24', 2026, 2025), 'tidak_terdefinisi');
 });
 
-test('4c. a unit from a dummy-PCI branch still gets a valid L, C, R and band under variant A, and variant B refuses it', () => {
+test('4c. a unit from a dummy-PCI branch still gets a valid L, C, R and band under variant A (tdv), and variant B (pci, now the default) refuses it', () => {
   const dummyPciUnit = baseInput({
     branchId: 'NP2', // not 06/24 or 07L/25R
     pciIsReal: false,
     previousPciIsReal: false,
     distresses: [{ type: 'RAVELING', severity: 'High', quantity: 10, quantityUnits: 'SqM', deduct: 20 }],
   });
-  const result = scoreUnit(dummyPciUnit);
+  const result = scoreUnit(dummyPciUnit, 'tdv');
   assert.equal(result.observedRateClass, 'tidak_terdefinisi');
   assert.equal(typeof result.likelihood, 'number');
   assert.equal(typeof result.consequence, 'number');
@@ -178,7 +191,9 @@ test('4c. a unit from a dummy-PCI branch still gets a valid L, C, R and band und
   assert.ok(result.riskScore > 0);
   assert.equal(result.likelihoodPci, null);
   // Section 3.6: scoring a display-filler-PCI unit under variant B must throw,
-  // never silently score off the fabricated PCI.
+  // never silently score off the fabricated PCI. DEFAULT_LIKELIHOOD_SOURCE is
+  // now 'pci' (metode-b-r2 brief section 2.2), so the no-arg call throws too.
+  assert.throws(() => scoreUnit(dummyPciUnit));
   assert.throws(() => scoreUnit(dummyPciUnit, 'pci'));
 });
 
@@ -298,14 +313,14 @@ test('12. the five pinned variant-comparison units land on their documented degr
   // while the sample-unit identities and geometries stayed fixed.
   assert.equal(degreeFor('06/24', 2025, 2024, 215, 'tdv'), 1);
   assert.equal(degreeFor('06/24', 2025, 2024, 215, 'pci'), 1);
-  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'tdv'), 4);
-  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'pci'), 2);
-  assert.equal(degreeFor('06/24', 2026, 2025, 258, 'tdv'), 4);
+  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'tdv'), 3);
+  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'pci'), 1);
+  assert.equal(degreeFor('06/24', 2026, 2025, 258, 'tdv'), 3);
   assert.equal(degreeFor('06/24', 2026, 2025, 258, 'pci'), 2);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'tdv'), 5);
+  assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'tdv'), 4);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'pci'), 2);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'tdv'), 5);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'pci'), 3);
+  assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'pci'), 2);
 });
 
 /* =============================================================================

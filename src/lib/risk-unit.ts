@@ -6,8 +6,8 @@
  * branch's aggregate PCI. See metode-b-r1-spec.md, which revises the original
  * metode-b-spec_4.md - Likelihood now comes from ASTM deduct value or unit
  * PCI (section 3), Frequency from hazard coverage (section 4), Consequence
- * escalation is capped at 40 (section 5), and the dominant distress is chosen
- * by deduct with an explicit tie-break (section 6).
+ * has no severity escalation (metode-b-r2 brief section 2.1), and the
+ * dominant distress is chosen by deduct with an explicit tie-break (section 6).
  *
  * Deliberately mirrors risk.ts's shape (BranchRiskInput/BranchRiskResult ->
  * UnitRiskInput/UnitRiskResult, scoreBranch -> scoreUnit) but is a fully
@@ -26,14 +26,13 @@ import {
   ROLE_TO_FREQUENCY,
   CONSEQUENCE_MATRIX,
   NO_DISTRESS_CONSEQUENCE,
-  CONSEQUENCE_ESCALATION_CAP,
   LIKELIHOOD_VALUES,
   type BranchRole,
   type HazardClass,
   type RiskBand,
   type LikelihoodSource,
 } from '../config/riskScales.ts';
-import { canonicalise, hazardClassFor, escalateConsequence, bandFor } from './risk.ts';
+import { canonicalise, hazardClassFor, bandFor } from './risk.ts';
 import { assessIcao, type IcaoAssessment } from './icao.ts';
 import { observedRateClass, type ObservedRateClass } from './observed-rate.ts';
 import { druFromUnit, type DruRating, type DruRelevancy, type DruUrgency } from './dru.ts';
@@ -303,17 +302,11 @@ export function scoreUnit(rawInput: UnitRiskInput, source: LikelihoodSource = DE
   const hazardClass = hazardClassFor(dominantDistress || undefined);
   trace.push(`Dominant distress '${dominantDistress || 'none'}' (deduct ${dominant?.deduct.toFixed(2) ?? '0'}) -> hazard class '${hazardClass}'`);
 
+  // Consequence never escalates on distress severity: severity describes
+  // pavement damage, not the Fine-Kinney Consequence axis (event outcome).
+  // See metode-b-r2 brief section 2.1.
   let consequence = distresses.length === 0 ? NO_DISTRESS_CONSEQUENCE : CONSEQUENCE_MATRIX[input.role][hazardClass];
   trace.push(`C base ${consequence} from role '${input.role}' x hazard class '${hazardClass}'`);
-
-  const hasNonPatchingHigh = distresses.some((d) => d.type !== 'PATCHING' && d.severity === 'High');
-  if (hasNonPatchingHigh) {
-    const escalated = Math.min(escalateConsequence(consequence, 1), CONSEQUENCE_ESCALATION_CAP);
-    if (escalated !== consequence) {
-      trace.push(`C escalated ${consequence} -> ${escalated}: a non-PATCHING distress on this unit is High severity`);
-      consequence = escalated;
-    }
-  }
 
   if (input.overrides?.likelihood !== undefined) {
     trace.push(`L overridden ${likelihood} -> ${input.overrides.likelihood}`);

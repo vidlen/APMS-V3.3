@@ -23,6 +23,7 @@ export type SurveyRegime = 'paver-lengkap' | 'paver-sebagian' | 'manual-satu-dis
  *  this table can never be kept exhaustive for them). */
 export const SURVEY_REGIME: Record<string, Record<number, SurveyRegime>> = {
   '06/24': {
+    2023: 'manual-satu-distress',
     2024: 'tanpa-distress', // 0 distress records in the app's file
     2025: 'paver-lengkap', // 530 records, 5 types
     2026: 'paver-lengkap', // 416 records, 4 types

@@ -288,7 +288,7 @@ export const DISTRESS_TO_HAZARD_CLASS: Record<string, HazardClass> = {
   // loose material an aircraft tyre can strike and ingest. Classified 'fod'
   // following Seven & Yardim [2], who treat pavement-related FOD as
   // safety-critical. On a runway this is also the more conservative reading -
-  // CONSEQUENCE_MATRIX gives runway/fod 40 against runway/structural 15.
+  // CONSEQUENCE_MATRIX gives runway/fod 15 against runway/structural 7.
   POTHOLE: 'fod',
   // Surface layer loss, so debris. 18 records.
   'ASPHALT STRIPPING': 'fod',
@@ -348,9 +348,6 @@ export const CONSEQUENCE_MATRIX: Record<BranchRole, Record<HazardClass, number>>
  *  Distinct from CONSEQUENCE_MATRIX[role].other, which is the consequence of
  *  a REAL distress whose hazard class happens to be 'other' (e.g. OIL SPILLAGE). */
 export const NO_DISTRESS_CONSEQUENCE = 1;
-
-/** Severity escalation (Metode B, section 5.2) never pushes C past this value. */
-export const CONSEQUENCE_ESCALATION_CAP = 40;
 
 /* =============================================================================
  * 6. DETECTABILITY  (locked decision 6)
@@ -585,12 +582,10 @@ export const SEVERITY_WEIGHT: Record<string, number> = { RINGAN: 1, SEDANG: 2, B
  * argument already cited for DOMINANT_DISTRESS_METRIC above).
  *
  * This escalation is opt-in per branch, exactly as DETECTABILITY_ESCALATION
- * already is (locked decision 6, risk.ts) - but note that is no longer true
- * for Metode B's OWN severity escalation (risk-unit.ts scoreUnit, section 5.2
- * of metode-b-r1-spec.md): a non-PATCHING High-severity distress on a sample
- * unit escalates C automatically, capped at CONSEQUENCE_ESCALATION_CAP. The
- * two escalations are unrelated - this section's SEVERITY_CONSEQUENCE_ESCALATION
- * belongs to the (now unused) branch-level admin-override path described
+ * already is (locked decision 6, risk.ts) - but note Metode B (risk-unit.ts
+ * scoreUnit) has no severity-based Consequence escalation of its own at all
+ * (metode-b-r2 brief section 2.1): this section's SEVERITY_CONSEQUENCE_ESCALATION
+ * belongs only to the (now unused) branch-level admin-override path described
  * below; Metode B never reads it. A label is not even computed automatically
  * here, because unlike hazardClass - mechanically derivable from a single
  * distress name - a branch's PREVAILING severity requires aggregating the
@@ -692,8 +687,9 @@ export const SEVERITY_LEVEL: Record<'N/A' | 'Low' | 'Medium' | 'High', 1 | 2 | 3
 export type LikelihoodSource = 'tdv' | 'pci';
 
 /** Default variant shown when the Risk tab first opens (section 9.1) - not
- *  persisted to localStorage, so every session starts here. */
-export const DEFAULT_LIKELIHOOD_SOURCE: LikelihoodSource = 'tdv';
+ *  persisted to localStorage, so every session starts here. 'pci' is a taken
+ *  decision (metode-b-r2 brief section 2.2), not a placeholder. */
+export const DEFAULT_LIKELIHOOD_SOURCE: LikelihoodSource = 'pci';
 
 /**
  * Variant A - Likelihood from a unit's total ASTM deduct value (TDV).
