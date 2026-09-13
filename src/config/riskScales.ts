@@ -757,12 +757,18 @@ export const COVERAGE_DIVISOR_M2 = 600;
 
 /**
  * Frequency from hazard coverage, %. Ladder follows Fine-Kinney's own
- * exposure-frequency semantics (hours -> days -> weeks -> months -> a few
- * times a year -> once a year): the smaller the share of the unit a hazard
- * covers, the less often an aircraft actually encounters it.
+ * exposure-frequency semantics (days -> weeks -> months -> a few times a
+ * year -> once a year): the smaller the share of the unit a hazard covers,
+ * the less often an aircraft actually encounters it.
+ *
+ * No F = 10 (continuous) rung: decomposing Seven & Yardim (2024) Table 7's 24
+ * runway hazards against the (L, F, C) Fine-Kinney space gives unique (L, F)
+ * pairs for 14 of the 24, and the F values that appear are only 0.5, 3 and 6 -
+ * the source never uses F = 10 on a runway (metode-b-r2 brief section 6.1).
+ * The 10, 2, 0.5 and 0.1 thresholds remain this research's own decision and
+ * still need their sensitivity argued.
  */
 export const F_FROM_COVERAGE = [
-  { minCoveragePct: 50, frequency: 10 }, //  continuous
   { minCoveragePct: 10, frequency: 6 }, //   daily
   { minCoveragePct: 2, frequency: 3 }, //    weekly
   { minCoveragePct: 0.5, frequency: 2 }, //  monthly

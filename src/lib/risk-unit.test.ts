@@ -416,9 +416,7 @@ test('likelihoodFromUnitPci: exact at all six ASTM condition-class boundaries', 
   assert.equal(likelihoodFromUnitPci(0), 10);
 });
 
-test('frequencyFromCoverage: exact at all five coverage boundaries, capped by role', () => {
-  assert.equal(frequencyFromCoverage(50, 'runway'), 10);
-  assert.equal(frequencyFromCoverage(49.999, 'runway'), 6);
+test('frequencyFromCoverage: exact at all four coverage boundaries, capped by role', () => {
   assert.equal(frequencyFromCoverage(10, 'runway'), 6);
   assert.equal(frequencyFromCoverage(9.999, 'runway'), 3);
   assert.equal(frequencyFromCoverage(2, 'runway'), 3);
@@ -430,6 +428,24 @@ test('frequencyFromCoverage: exact at all five coverage boundaries, capped by ro
   assert.equal(frequencyFromCoverage(0, 'runway'), 0.5);
   // Role ceiling caps a high-coverage unit on a low-exposure facility.
   assert.equal(frequencyFromCoverage(50, 'non_movement'), 0.5);
+});
+
+test('frequencyFromCoverage: no unit across all three reference files exceeds F = 6', () => {
+  const fc0624_2025 = loadFc('../../public/data/runway-06-24-units-2025.json');
+  const fc0624_2024 = loadFc('../../public/data/runway-06-24-units-2024.json');
+  const inputs0624_2025 = toUnitRiskInputs('06/24', 'runway', 2025, fc0624_2025, fc0624_2024, 2024);
+
+  const fc0624_2026 = loadFc('../../public/data/runway-06-24-units-2026.json');
+  const inputs0624_2026 = toUnitRiskInputs('06/24', 'runway', 2026, fc0624_2026, fc0624_2025, 2025);
+
+  const fcRwy2_2026 = loadFc('../../public/data/runway-07L-25R-units-2026.json');
+  const fcRwy2_2025 = loadFc('../../public/data/runway-07L-25R-units-2025.json');
+  const inputsRwy2 = toUnitRiskInputs('07L/25R', 'runway', 2026, fcRwy2_2026, fcRwy2_2025, 2025);
+
+  const results = [...scoreUnits(inputs0624_2025), ...scoreUnits(inputs0624_2026), ...scoreUnits(inputsRwy2)];
+  for (const r of results) {
+    assert.ok(r.frequency <= 6, `unit ${r.unitNumber} frequency ${r.frequency} exceeds 6`);
+  }
 });
 
 test('dominant-distress tie-break: highest deduct wins; a tie is broken by HAZARD_CLASS_PRECEDENCE, then by earliest record', () => {
