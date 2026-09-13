@@ -52,6 +52,10 @@ export default function IcaoMatrixPanel({ results, selectedCell, onSelectCell, l
           Sample-unit counts per cell{likelihoodSource ? ` — likelihood variant ${SOURCE_LABEL[likelihoodSource]}` : ""}.
           Click a cell to filter the register below to it.
         </p>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Severity A and B are empty because no friction survey feeds this dataset (frictionState is always 0 -
+          consequence-apirm.ts), not because the runways are free of a hazardous or catastrophic condition.
+        </p>
       </div>
       <div className="p-4 overflow-x-auto">
         <div
@@ -64,7 +68,11 @@ export default function IcaoMatrixPanel({ results, selectedCell, onSelectCell, l
             <div
               key={s}
               className="text-center text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground pb-1"
-              title={SEVERITY_LABELS[s]}
+              title={
+                s === "A" || s === "B"
+                  ? `${SEVERITY_LABELS[s]} - permanently empty: reaching C >= ${s === "A" ? 100 : 40} needs a measured friction loss, and no friction survey feeds this dataset`
+                  : SEVERITY_LABELS[s]
+              }
             >
               {s}
             </div>

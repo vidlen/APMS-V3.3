@@ -52,15 +52,17 @@ export default function RiskMethodologyPanel({ results, likelihoodSource }: Risk
             value (variant A) or its own PCI read on the same condition-class boundaries (variant B), currently{" "}
             <span className="text-foreground font-medium">{SOURCE_LABEL[likelihoodSource]}</span>. Frequency comes
             from how much of the unit&apos;s own area a hazard covers, capped at the facility role&apos;s exposure
-            ceiling. Consequence comes from the dominant distress&apos;s failure mode (fod / friction / structural /
-            other) crossed with the facility role, escalated one step - never past 40 - when a non-patching distress
-            on the unit is High severity. The operational verdict is the ICAO Doc 9859 zone, not the Fine-Kinney
-            degree; DRU Urgency follows that same zone.
+            ceiling. Consequence is the worse of two independent condition axes, not the dominant distress&apos;s
+            hazard class: a structural axis (S/K/G - structural cracking, friction loss, roughness) scored through a
+            seven-line rule that reproduces all 24 runway hazard scores in Seven &amp; Yardim&apos;s (2024) Table 7,
+            and a FOD axis scored from raveling through Shah et al.&apos;s (2004) equation [9] with their Table 8
+            weights. The operational verdict is the ICAO Doc 9859 zone, not the Fine-Kinney degree; DRU Urgency
+            follows that same zone.
           </p>
 
           <div>
             <p className="text-foreground font-semibold text-[11px] uppercase tracking-wide mb-2">
-              Three limits, stated rather than buried
+              Four limits, stated rather than buried
             </p>
             <ul className="space-y-2 list-disc pl-4">
               <li>
@@ -73,6 +75,11 @@ export default function RiskMethodologyPanel({ results, likelihoodSource }: Risk
                 A linear-quantity distress (metres, e.g. L &amp; T CR) is folded into coverage using a 1.0 m
                 influence width - roughly a main-gear track plus spray. This is a research decision, not a citation,
                 and is open to recalibration.
+              </li>
+              <li>
+                The FOD axis&apos;s Consequence-per-state column (FOD_STATE_CONSEQUENCE) is this research&apos;s own
+                bridge from Shah&apos;s 0-100 index to Fine-Kinney&apos;s C scale, not a value reproduced from Shah -
+                only the index&apos;s weights, denominator and state boundaries are the citation.
               </li>
               <li>
                 DRU Relevancy and Urgency are this implementation&apos;s own proposal, not content reproduced from

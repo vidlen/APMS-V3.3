@@ -394,6 +394,16 @@ export default function UnitRiskPanel({
                               {likelihoodSource === "pci" && " ← used"}
                             </span>
                           </div>
+                          <div className="flex items-center gap-3 mb-2 text-[11px]" title="S/K/G = structural / friction / roughness state">
+                            <span className={r.consequenceStructural >= r.consequence ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                              C structural (S{r.structuralState} K{r.frictionState} G{r.roughnessState}) {r.consequenceStructural}
+                              {r.consequenceStructural >= r.consequence && " ← used"}
+                            </span>
+                            <span className={r.consequenceFod >= r.consequence ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                              C fod (idx {r.fodIndex.toFixed(1)}, state {r.fodState}) {r.consequenceFod}
+                              {r.consequenceFod >= r.consequence && " ← used"}
+                            </span>
+                          </div>
                           <ul className="space-y-1.5">
                             {r.trace.map((line, i) => (
                               <li key={i} className="text-foreground/90 leading-snug">

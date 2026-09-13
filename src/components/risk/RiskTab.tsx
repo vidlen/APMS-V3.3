@@ -16,6 +16,7 @@ import IcaoMatrixPanel from "./IcaoMatrixPanel";
 import DistressCoveragePanel from "./DistressCoveragePanel";
 import RiskMethodologyPanel from "./RiskMethodologyPanel";
 import VariantComparisonPanel from "./VariantComparisonPanel";
+import ConsequenceComparisonPanel from "./ConsequenceComparisonPanel";
 import UnitRiskPanel from "./UnitRiskPanel";
 
 interface RiskTabProps {
@@ -153,11 +154,11 @@ export default function RiskTab({
             value={likelihoodSource}
             onValueChange={(v) => v && handleSelectSource(v as LikelihoodSource)}
           >
-            <ToggleGroupItem value="tdv" title="Likelihood from the sum of deduct value across every distress on the unit. Preserves the signal from stacked distress types.">
-              A &middot; deduct ASTM
-            </ToggleGroupItem>
-            <ToggleGroupItem value="pci" title="Likelihood from the unit's own PCI, read on the ASTM condition class. Uses the already-corrected figure, but flattens the top end.">
+            <ToggleGroupItem value="pci" title="Likelihood from the unit's own PCI, read on the ASTM condition class. Uses the already-corrected figure, but flattens the top end. Default variant (metode-b-r2 brief section 2.2).">
               B &middot; PCI unit
+            </ToggleGroupItem>
+            <ToggleGroupItem value="tdv" title="Likelihood from the sum of deduct value across every distress on the unit. Preserves the signal from stacked distress types. Shown for comparison against variant B.">
+              A &middot; deduct ASTM (comparison)
             </ToggleGroupItem>
           </ToggleGroup>
           <button
@@ -173,6 +174,8 @@ export default function RiskTab({
       <IcaoMatrixPanel results={results} selectedCell={selectedCell} onSelectCell={handleSelectCell} likelihoodSource={likelihoodSource} />
 
       <VariantComparisonPanel resultsA={resultsA} resultsB={resultsB} />
+
+      <ConsequenceComparisonPanel results={results} />
 
       <DistressCoveragePanel
         stats={repairLogStats}
