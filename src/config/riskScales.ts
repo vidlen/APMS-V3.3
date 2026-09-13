@@ -326,6 +326,12 @@ export const DISTRESS_TO_HAZARD_CLASS: Record<string, HazardClass> = {
 };
 
 /**
+ * NOT READ by the scoring path any more (metode-b-r2 brief section 5.3):
+ * scoreUnit's Consequence now comes from consequence-apirm.ts (structural)
+ * and fod-index.ts (FOD), not from role x hazard class. Kept only as the
+ * pre-B-R2 comparison baseline for the thesis's methodology-comparison
+ * chapter (BAB 4).
+ *
  * Recalibrated for Metode B (metode-b-r1-spec.md section 5.1): the unique
  * L.F.C decompositions of Seven & Yardim Table 7 (p. 13, runway) only use
  * C = 1, 3, 7, 15 - 40 appears on the three worst hazards only, and 100 never

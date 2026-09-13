@@ -26,7 +26,6 @@ import {
   type UnitDistress,
   type UnitRiskInput,
 } from './risk-unit.ts';
-import { CONSEQUENCE_MATRIX } from '../config/riskScales.ts';
 import { observedRateClass } from './observed-rate.ts';
 import { comparableYears } from '../config/surveyRegimes.ts';
 import { bandFor } from './risk.ts';
@@ -111,16 +110,23 @@ test('2. PATCHING contributes to TDV and coverage; no distress ever escalates C'
   assert.ok(coveragePct(UNIT_221.distresses) > 0);
   const result = scoreUnit(UNIT_221);
   assert.equal(result.dominantDistress, 'PATCHING');
+  // PATCHING touches neither the structural/roughness nor the FOD (raveling)
+  // axis, so a High-severity PATCHING-only unit floors at C=1 on both -
+  // severity never pushes it any higher.
   const patchHighOnly: UnitDistress[] = [{ type: 'PATCHING', severity: 'High', quantity: 100, quantityUnits: 'SqM', deduct: 50 }];
   const patched = scoreUnit(baseInput({ distresses: patchHighOnly, role: 'runway' }));
-  assert.equal(patched.consequence, 15); // base fod consequence, no escalation
+  assert.equal(patched.consequenceStructural, 1);
+  assert.equal(patched.consequenceFod, 1);
+  assert.equal(patched.consequence, 1);
 });
 
-test('2b. a runway unit with High-severity raveling never escalates C past CONSEQUENCE_MATRIX.runway.fod', () => {
+test('2b. a runway unit with High-severity raveling only takes C from the FOD axis, never CONSEQUENCE_MATRIX', () => {
   const ravelingHighOnly: UnitDistress[] = [{ type: 'RAVELING', severity: 'High', quantity: 100, quantityUnits: 'SqM', deduct: 50 }];
   const result = scoreUnit(baseInput({ distresses: ravelingHighOnly, role: 'runway' }));
-  assert.equal(result.consequence, CONSEQUENCE_MATRIX.runway.fod);
-  assert.equal(result.consequence, 15);
+  assert.equal(result.consequenceStructural, 1); // raveling is not a structural distress
+  assert.equal(result.fodState, 6);
+  assert.equal(result.consequenceFod, 15);
+  assert.equal(result.consequence, 15); // max(1, 15) - happens to equal the old CONSEQUENCE_MATRIX.runway.fod
 });
 
 test('2c. scoreUnits with no source argument uses the pci variant', () => {
@@ -317,10 +323,65 @@ test('12. the five pinned variant-comparison units land on their documented degr
   assert.equal(degreeFor('06/24', 2026, 2025, 13, 'pci'), 1);
   assert.equal(degreeFor('06/24', 2026, 2025, 258, 'tdv'), 3);
   assert.equal(degreeFor('06/24', 2026, 2025, 258, 'pci'), 2);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'tdv'), 4);
+  assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'tdv'), 5);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'pci'), 2);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'tdv'), 5);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'pci'), 2);
+  assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'pci'), 3);
+});
+
+/* =============================================================================
+ * B-R2 giliran 3 - unit acuan: FOD menang, struktur menang, dan seri.
+ * ========================================================================== */
+
+test('13. the five B-R2 reference units pin the FOD-wins, structural-wins and tie cases', () => {
+  function resultFor(branchId: string, year: number, prevYear: number, unit: number) {
+    const fileFor = (b: string, y: number) => `../../public/data/runway-${b === '06/24' ? '06-24' : '07L-25R'}-units-${y}.json`;
+    const cur = loadFc(fileFor(branchId, year));
+    const prev = loadFc(fileFor(branchId, prevYear));
+    const inputs = toUnitRiskInputs(branchId, 'runway', year, cur, prev, prevYear);
+    const result = scoreUnits(inputs).find((r) => r.unitNumber === unit);
+    if (!result) throw new Error(`unit ${unit} not found`);
+    return result;
+  }
+
+  // Unit 258: FOD axis wins (raveling dominates a structurally clean unit).
+  const u258 = resultFor('06/24', 2026, 2025, 258);
+  assert.equal(u258.fodIndex, 80);
+  assert.equal(u258.fodState, 6);
+  assert.equal(u258.consequenceFod, 15);
+  assert.equal(u258.consequenceStructural, 1);
+  assert.equal(u258.consequence, 15);
+
+  // Unit 16: both axes present, FOD still the larger of the two.
+  const u16 = resultFor('06/24', 2026, 2025, 16);
+  assert.equal(u16.fodIndex, 80);
+  assert.equal(u16.fodState, 6);
+  assert.equal(u16.consequenceFod, 15);
+  assert.equal(u16.consequenceStructural, 7);
+  assert.equal(u16.consequence, 15);
+
+  // Unit 300: no distress at all - both axes floor at C=1.
+  const u300 = resultFor('06/24', 2026, 2025, 300);
+  assert.equal(u300.fodIndex, 0);
+  assert.equal(u300.fodState, 1);
+  assert.equal(u300.consequenceFod, 1);
+  assert.equal(u300.consequenceStructural, 1);
+  assert.equal(u300.consequence, 1);
+
+  // Unit 59: the two axes tie at 15.
+  const u59 = resultFor('07L/25R', 2026, 2025, 59);
+  assert.equal(u59.fodIndex, 80);
+  assert.equal(u59.consequenceFod, 15);
+  assert.equal(u59.consequenceStructural, 15);
+  assert.equal(u59.consequence, 15);
+
+  // Unit 100: structural axis wins over a smaller FOD reading.
+  const u100 = resultFor('07L/25R', 2026, 2025, 100);
+  assert.equal(u100.fodIndex, 40);
+  assert.equal(u100.fodState, 4);
+  assert.equal(u100.consequenceFod, 7);
+  assert.equal(u100.consequenceStructural, 15);
+  assert.equal(u100.consequence, 15);
 });
 
 /* =============================================================================
