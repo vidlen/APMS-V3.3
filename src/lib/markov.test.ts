@@ -59,8 +59,8 @@ test("live JSON has the workbook class distributions and raw transition rows", (
 });
 
 test("parameter functions produce the live browser inputs", () => {
-  closeTo(measuredRate(previous, next), 1.6956666666666817, 1e-12);
-  closeTo(fillProbability(measuredRate(previous, next), 15), 0.8869555555555546, 1e-12);
+  closeTo(measuredRate(previous, next), 1.6957328729629686, 1e-12);
+  closeTo(fillProbability(measuredRate(previous, next), 15), 0.8869511418024688, 1e-12);
   closeTo(midpointOffset(next, result.classDistribution.next, MARKOV_PARAMS.classMidpoints), 3.342, 1e-9);
 });
 

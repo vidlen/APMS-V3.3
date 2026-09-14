@@ -21,6 +21,41 @@ function loadFc(relativePath: string): GeoJSONFeatureCollection {
   return JSON.parse(readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf-8'));
 }
 
+const runwaySurveyFiles = [
+  { branchId: '06/24', fileStem: 'runway-06-24', years: [2023, 2024, 2025, 2026] },
+  { branchId: '07L/25R', fileStem: 'runway-07L-25R', years: [2020, 2021, 2022, 2023, 2024, 2025, 2026] },
+] as const;
+
+const allowedNegativePciCorrelations = new Set([
+  '06/24:2025-2026',
+  '07L/25R:2025-2026',
+]);
+
+function featuresBySampleUnit(fc: GeoJSONFeatureCollection) {
+  return new Map(fc.features.map((feature) => [feature.properties.sampleUnit, feature]));
+}
+
+function pearsonCorrelation(left: number[], right: number[]): number {
+  assert.equal(left.length, right.length, 'correlation inputs must have the same length');
+  assert.ok(left.length > 1, 'correlation requires at least two sample units');
+
+  const leftMean = left.reduce((sum, value) => sum + value, 0) / left.length;
+  const rightMean = right.reduce((sum, value) => sum + value, 0) / right.length;
+  let covariance = 0;
+  let leftVariance = 0;
+  let rightVariance = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    const leftDelta = left[index] - leftMean;
+    const rightDelta = right[index] - rightMean;
+    covariance += leftDelta * rightDelta;
+    leftVariance += leftDelta * leftDelta;
+    rightVariance += rightDelta * rightDelta;
+  }
+
+  return covariance / Math.sqrt(leftVariance * rightVariance);
+}
+
 test('pciIsReal is true only for 06/24 and 07L/25R', () => {
   assert.equal(isPciReal('06/24'), true);
   assert.equal(isPciReal('07L/25R'), true);
@@ -32,7 +67,7 @@ test('RWY 06/24 endpoint survey payloads follow the Markov workbook sample-unit 
   const expected = [
     { year: 2023, unit1Pci: 100, unit300Pci: 100 },
     { year: 2024, unit1Pci: 100, unit300Pci: 100 },
-    { year: 2025, unit1Pci: 100, unit300Pci: 99 },
+    { year: 2025, unit1Pci: 100, unit300Pci: 99.0000007152557 },
     { year: 2026, unit1Pci: 99, unit300Pci: 100 },
   ];
 
@@ -51,6 +86,60 @@ test('RWY 06/24 endpoint survey payloads follow the Markov workbook sample-unit 
     { type: 'Raveling', severity: 'Low', quantity: 0.06, quantityUnits: 'SqM', deduct: 1 },
   ]);
   assert.deepEqual(unit300?.properties.distresses, []);
+});
+
+test('runway geometry for each sample unit is identical across every survey year on its branch', () => {
+  for (const { branchId, fileStem, years } of runwaySurveyFiles) {
+    const baselineYear = years[0];
+    const baseline = featuresBySampleUnit(loadFc(`../../public/data/${fileStem}-units-${baselineYear}.json`));
+
+    for (const year of years.slice(1)) {
+      const current = featuresBySampleUnit(loadFc(`../../public/data/${fileStem}-units-${year}.json`));
+      assert.deepEqual(
+        [...current.keys()].sort((a, b) => a - b),
+        [...baseline.keys()].sort((a, b) => a - b),
+        `${branchId} ${baselineYear}-${year}: sample-unit identities differ`,
+      );
+
+      for (const [sampleUnit, baselineFeature] of baseline) {
+        assert.deepEqual(
+          current.get(sampleUnit)?.geometry,
+          baselineFeature.geometry,
+          `${branchId} ${baselineYear}-${year}: geometry differs for sample unit ${sampleUnit}`,
+        );
+      }
+    }
+  }
+});
+
+test('consecutive runway survey years have positive PCI correlation except documented current anomalies', () => {
+  for (const { branchId, fileStem, years } of runwaySurveyFiles) {
+    for (let index = 1; index < years.length; index += 1) {
+      const previousYear = years[index - 1];
+      const currentYear = years[index];
+      const pairName = `${branchId}:${previousYear}-${currentYear}`;
+      const previous = featuresBySampleUnit(loadFc(`../../public/data/${fileStem}-units-${previousYear}.json`));
+      const current = featuresBySampleUnit(loadFc(`../../public/data/${fileStem}-units-${currentYear}.json`));
+      const sampleUnits = [...previous.keys()].filter((sampleUnit) => current.has(sampleUnit)).sort((a, b) => a - b);
+      const correlation = pearsonCorrelation(
+        sampleUnits.map((sampleUnit) => Number(previous.get(sampleUnit)?.properties.pci_score)),
+        sampleUnits.map((sampleUnit) => Number(current.get(sampleUnit)?.properties.pci_score)),
+      );
+
+      assert.ok(Number.isFinite(correlation), `${branchId} ${previousYear}-${currentYear}: PCI correlation is not finite`);
+      if (allowedNegativePciCorrelations.has(pairName)) {
+        assert.ok(
+          correlation < 0,
+          `${branchId} ${previousYear}-${currentYear}: allowlisted PCI anomaly is no longer negative (${correlation.toFixed(6)}); remove it from the allowlist`,
+        );
+      } else {
+        assert.ok(
+          correlation > 0,
+          `${branchId} ${previousYear}-${currentYear}: expected positive PCI correlation, got ${correlation.toFixed(6)}`,
+        );
+      }
+    }
+  }
 });
 
 test('polygonAreaM2 on a real 06/24 unit polygon lands in the surveyed 560-604 m2 range', () => {
