@@ -52,12 +52,11 @@ export default function RiskMethodologyPanel({ results, likelihoodSource }: Risk
             value (variant A) or its own PCI read on the same condition-class boundaries (variant B), currently{" "}
             <span className="text-foreground font-medium">{SOURCE_LABEL[likelihoodSource]}</span>. Frequency comes
             from how much of the unit&apos;s own area a hazard covers, capped at the facility role&apos;s exposure
-            ceiling. Consequence is the worse of two independent condition axes, not the dominant distress&apos;s
-            hazard class: a structural axis (S/K/G - structural cracking, friction loss, roughness) scored through a
-            seven-line rule that reproduces all 24 runway hazard scores in Seven &amp; Yardim&apos;s (2024) Table 7,
-            and a FOD axis scored from raveling through Shah et al.&apos;s (2004) equation [9] with their Table 8
-            weights. The operational verdict is the ICAO Doc 9859 zone, not the Fine-Kinney degree; DRU Urgency
-            follows that same zone.
+            ceiling. Consequence comes from one FODp index, not the dominant distress&apos;s hazard class: raveling and
+            longitudinal/transverse cracking are weighted through Shah et al.&apos;s (2004) equation [9] and Table 8,
+            then mapped from FODp state to Fine-Kinney C by this research&apos;s FOD_STATE_CONSEQUENCE bridge. The
+            operational verdict is the ICAO Doc 9859 zone, not the Fine-Kinney degree; DRU Urgency follows that
+            same zone.
           </p>
 
           <div>
@@ -77,9 +76,10 @@ export default function RiskMethodologyPanel({ results, likelihoodSource }: Risk
                 and is open to recalibration.
               </li>
               <li>
-                The FOD axis&apos;s Consequence-per-state column (FOD_STATE_CONSEQUENCE) is this research&apos;s own
-                bridge from Shah&apos;s 0-100 index to Fine-Kinney&apos;s C scale, not a value reproduced from Shah -
-                only the index&apos;s weights, denominator and state boundaries are the citation.
+                Shah&apos;s Table 9 MTO density bands are intentionally not used: they begin at 10%, whereas this
+                sample-unit dataset would concentrate in the first band and leave the density axis uninformative.
+                FOD_STATE_CONSEQUENCE is this research&apos;s own bridge from Shah&apos;s 0-100 index to Fine-Kinney&apos;s C
+                scale; only the index weights, denominator and state boundaries are cited from Shah.
               </li>
               <li>
                 DRU Relevancy and Urgency are this implementation&apos;s own proposal, not content reproduced from

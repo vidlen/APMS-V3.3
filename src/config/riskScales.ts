@@ -326,10 +326,9 @@ export const DISTRESS_TO_HAZARD_CLASS: Record<string, HazardClass> = {
 };
 
 /**
- * NOT READ by the scoring path any more (metode-b-r2 brief section 5.3):
- * scoreUnit's Consequence now comes from consequence-apirm.ts (structural)
- * and fod-index.ts (FOD), not from role x hazard class. Kept only as the
- * pre-B-R2 comparison baseline for the thesis's methodology-comparison
+ * NOT READ by the scoring path any more: scoreUnit's Consequence now comes
+ * only from fod-index.ts, not from role x hazard class. Kept only as the
+ * pre-FODp comparison baseline for the thesis's methodology-comparison
  * chapter (BAB 4).
  *
  * Recalibrated for Metode B (metode-b-r1-spec.md section 5.1): the unique

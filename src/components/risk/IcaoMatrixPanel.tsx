@@ -53,8 +53,8 @@ export default function IcaoMatrixPanel({ results, selectedCell, onSelectCell, l
           Click a cell to filter the register below to it.
         </p>
         <p className="text-[11px] text-muted-foreground mt-1">
-          Severity A and B are empty because no friction survey feeds this dataset (frictionState is always 0 -
-          consequence-apirm.ts), not because the runways are free of a hazardous or catastrophic condition.
+          Severity A and B are empty by construction because FOD_STATE_CONSEQUENCE stops at C = 15; the matrix
+          keeps both columns visible so that limit is explicit rather than hidden.
         </p>
       </div>
       <div className="p-4 overflow-x-auto">
@@ -70,7 +70,7 @@ export default function IcaoMatrixPanel({ results, selectedCell, onSelectCell, l
               className="text-center text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground pb-1"
               title={
                 s === "A" || s === "B"
-                  ? `${SEVERITY_LABELS[s]} - permanently empty: reaching C >= ${s === "A" ? 100 : 40} needs a measured friction loss, and no friction survey feeds this dataset`
+                  ? `${SEVERITY_LABELS[s]} - permanently empty: FOD_STATE_CONSEQUENCE stops at C = 15, below the C >= ${s === "A" ? 100 : 40} required by this column`
                   : SEVERITY_LABELS[s]
               }
             >

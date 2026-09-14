@@ -34,16 +34,7 @@ import { canonicalise, hazardClassFor, bandFor } from './risk.ts';
 import { assessIcao, type IcaoAssessment } from './icao.ts';
 import { observedRateClass, type ObservedRateClass } from './observed-rate.ts';
 import { druFromUnit, type DruRating, type DruRelevancy, type DruUrgency } from './dru.ts';
-import {
-  structuralState,
-  frictionState,
-  roughnessState,
-  consequenceApirm,
-  type StructuralState,
-  type FrictionState,
-  type RoughnessState,
-} from './consequence-apirm.ts';
-import { fodIndex, fodState, consequenceFod, type FodState } from './fod-index.ts';
+import { fodBreakdown, FOD_STATE_CONSEQUENCE, type FodState } from './fod-index.ts';
 
 export type Zone = 'ujung' | 'tengah';
 
@@ -112,6 +103,8 @@ export interface UnitRiskResult {
   stationKm: number;
   /** Total ASTM deduct value across every distress record, PATCHING included. */
   tdv: number;
+  /** Survey PCI used for likelihood and shown with the B-R3 FODp result. */
+  pci: number;
   /** % of the unit's own area a hazard covers - see coveragePct (section 4.1). */
   coveragePct: number;
   /** Which variant produced `likelihood` for this result. */
@@ -122,17 +115,12 @@ export interface UnitRiskResult {
   /** Variant B - null on a unit whose PCI is a display filler (pciIsReal false). */
   likelihoodPci: number | null;
   frequency: number;
-  /** Sumbu kondisi yang menghasilkan consequenceStructural. */
-  structuralState: StructuralState;
-  frictionState: FrictionState;
-  roughnessState: RoughnessState;
-  /** C dari aturan APIRM tujuh baris. */
-  consequenceStructural: number;
-  /** Indeks FOD 0 sampai 100 dan state-nya menurut Shah Tabel 12. */
+  /** FODp according to Shah equation [9] and the Table 8 component weights. */
   fodIndex: number;
   fodState: FodState;
-  /** C dari sumbu FOD. `consequence` adalah maksimum keduanya. */
-  consequenceFod: number;
+  fodRavelingWeight: number;
+  fodCrackWeight: number;
+  /** Consequence comes solely from FODp state; no APIRM/SKG maximum remains. */
   consequence: number;
   riskScore: number; // R = L x F x C
   band: RiskBand;
@@ -271,8 +259,8 @@ function pickDominant(distresses: UnitDistress[], trace: string[]): DominantCand
   return best;
 }
 
-/** Scores one sample unit end to end: TDV/coverage -> L/F, dominant
- *  distress's hazard class -> C, R = L x F x C, then the ICAO crosswalk, the
+/** Scores one sample unit end to end: TDV/coverage -> L/F, FODp -> C,
+ *  R = L x F x C, then the ICAO crosswalk, the
  *  observed-rate class and the DRU rating. `source` picks which Likelihood
  *  variant drives R (section 3.6) - defaults to DEFAULT_LIKELIHOOD_SOURCE.
  *  Everything past Likelihood is identical between variants; see the "11" test
@@ -321,22 +309,12 @@ export function scoreUnit(rawInput: UnitRiskInput, source: LikelihoodSource = DE
   const hazardClass = hazardClassFor(dominantDistress || undefined);
   trace.push(`Dominant distress '${dominantDistress || 'none'}' (deduct ${dominant?.deduct.toFixed(2) ?? '0'}) -> hazard class '${hazardClass}'`);
 
-  // Consequence never escalates on distress severity: severity describes
-  // pavement damage, not the Fine-Kinney Consequence axis (event outcome).
-  // Two independent condition axes feed C - structural (APIRM seven-line
-  // rule) and FOD (Shah raveling index) - and the worse of the two wins.
-  // See metode-b-r2 brief sections 2.1 and 5.1.
-  const s = structuralState(distresses);
-  const k = frictionState();
-  const g = roughnessState(distresses);
-  const consequenceStructural = consequenceApirm(s, k, g);
-  const fodIdx = fodIndex(distresses);
-  const fodSt = fodState(fodIdx);
-  const consequenceFodValue = consequenceFod(distresses);
-  let consequence = Math.max(consequenceStructural, consequenceFodValue);
-  trace.push(`C structural ${consequenceStructural} from S=${s} K=${k} G=${g} (APIRM seven-line rule)`);
-  trace.push(`C fod ${consequenceFodValue} from index ${fodIdx.toFixed(1)} state ${fodSt} (Shah eq. [9], Table 8 weights)`);
-  trace.push(`C final ${consequence} = max(C structural; C fod)`);
+  const fod = fodBreakdown(distresses);
+  let consequence = FOD_STATE_CONSEQUENCE[fod.state];
+  trace.push(
+    `C ${consequence} from FODp index ${fod.index.toFixed(1)} state ${fod.state} ` +
+      `(Shah equation [9], Table 8 weights: raveling wRj ${fod.ravelingWeight}, L&T wLj ${fod.crackWeight})`,
+  );
 
   if (input.overrides?.likelihood !== undefined) {
     trace.push(`L overridden ${likelihood} -> ${input.overrides.likelihood}`);
@@ -380,19 +358,17 @@ export function scoreUnit(rawInput: UnitRiskInput, source: LikelihoodSource = DE
     zone: input.zone,
     stationKm: input.stationKm,
     tdv,
+    pci: input.pci,
     coveragePct: coverage,
     likelihoodSource: source,
     likelihood,
     likelihoodTdv,
     likelihoodPci,
     frequency,
-    structuralState: s,
-    frictionState: k,
-    roughnessState: g,
-    consequenceStructural,
-    fodIndex: fodIdx,
-    fodState: fodSt,
-    consequenceFod: consequenceFodValue,
+    fodIndex: fod.index,
+    fodState: fod.state,
+    fodRavelingWeight: fod.ravelingWeight,
+    fodCrackWeight: fod.crackWeight,
     consequence,
     riskScore,
     band,

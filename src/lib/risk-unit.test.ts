@@ -104,29 +104,26 @@ const UNIT_221: UnitRiskInput = baseInput({
  * §3 - TDV, coverage, and PATCHING's new role.
  * ========================================================================== */
 
-test('2. PATCHING contributes to TDV and coverage; no distress ever escalates C', () => {
+test('2. PATCHING contributes to TDV and coverage but never contributes to FODp C', () => {
   // Section 6: unit 221's dominant distress by deduct is now PATCHING (2.7 > 1.0).
   assert.equal(totalDeductValue(UNIT_221.distresses), 3.7);
   assert.ok(coveragePct(UNIT_221.distresses) > 0);
   const result = scoreUnit(UNIT_221);
   assert.equal(result.dominantDistress, 'PATCHING');
-  // PATCHING touches neither the structural/roughness nor the FOD (raveling)
-  // axis, so a High-severity PATCHING-only unit floors at C=1 on both -
-  // severity never pushes it any higher.
+  // PATCHING is not one of the two FODp variables, so a High-severity
+  // PATCHING-only unit still floors at FOD state 1 / C=1.
   const patchHighOnly: UnitDistress[] = [{ type: 'PATCHING', severity: 'High', quantity: 100, quantityUnits: 'SqM', deduct: 50 }];
   const patched = scoreUnit(baseInput({ distresses: patchHighOnly, role: 'runway' }));
-  assert.equal(patched.consequenceStructural, 1);
-  assert.equal(patched.consequenceFod, 1);
+  assert.equal(patched.fodIndex, 0);
+  assert.equal(patched.fodState, 1);
   assert.equal(patched.consequence, 1);
 });
 
-test('2b. a runway unit with High-severity raveling only takes C from the FOD axis, never CONSEQUENCE_MATRIX', () => {
+test('2b. a runway unit with High-severity raveling takes C solely from FODp', () => {
   const ravelingHighOnly: UnitDistress[] = [{ type: 'RAVELING', severity: 'High', quantity: 100, quantityUnits: 'SqM', deduct: 50 }];
   const result = scoreUnit(baseInput({ distresses: ravelingHighOnly, role: 'runway' }));
-  assert.equal(result.consequenceStructural, 1); // raveling is not a structural distress
-  assert.equal(result.fodState, 6);
-  assert.equal(result.consequenceFod, 15);
-  assert.equal(result.consequence, 15); // max(1, 15) - happens to equal the old CONSEQUENCE_MATRIX.runway.fod
+  assert.equal(result.fodState, 4);
+  assert.equal(result.consequence, 7);
 });
 
 test('2c. scoreUnits with no source argument uses the pci variant', () => {
@@ -303,7 +300,7 @@ test('11. changing the likelihood source moves L and R but leaves F, C, hazardCl
   }
 });
 
-test('12. the five pinned variant-comparison units land on their documented degrees', () => {
+test('12. the B-R3 pinned units land on their documented degrees', () => {
   function degreeFor(branchId: string, year: number, prevYear: number, unit: number, source: 'tdv' | 'pci') {
     const fileFor = (b: string, y: number) => `../../public/data/runway-${b === '06/24' ? '06-24' : '07L-25R'}-units-${y}.json`;
     const cur = loadFc(fileFor(branchId, year));
@@ -314,26 +311,14 @@ test('12. the five pinned variant-comparison units land on their documented degr
     return result.band.degree;
   }
 
-  // RWY 06/24 data follows the Markov workbook's 1-to-300 direction. These
-  // pins moved with the complete survey payload (PCI, rating and distresses),
-  // while the sample-unit identities and geometries stayed fixed.
-  assert.equal(degreeFor('06/24', 2025, 2024, 215, 'tdv'), 1);
-  assert.equal(degreeFor('06/24', 2025, 2024, 215, 'pci'), 1);
-  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'tdv'), 3);
-  assert.equal(degreeFor('06/24', 2026, 2025, 13, 'pci'), 1);
-  assert.equal(degreeFor('06/24', 2026, 2025, 258, 'tdv'), 3);
-  assert.equal(degreeFor('06/24', 2026, 2025, 258, 'pci'), 2);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'tdv'), 5);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 98, 'pci'), 2);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'tdv'), 5);
+  assert.equal(degreeFor('06/24', 2025, 2024, 285, 'pci'), 1);
+  assert.equal(degreeFor('06/24', 2026, 2025, 16, 'pci'), 3);
+  assert.equal(degreeFor('06/24', 2026, 2025, 300, 'pci'), 1);
   assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'pci'), 3);
+  assert.equal(degreeFor('07L/25R', 2026, 2025, 100, 'pci'), 3);
 });
 
-/* =============================================================================
- * B-R2 giliran 3 - unit acuan: FOD menang, struktur menang, dan seri.
- * ========================================================================== */
-
-test('13. the five B-R2 reference units pin the FOD-wins, structural-wins and tie cases', () => {
+test('13. B-R3 acceptance fixtures pin FODp, C, F, R, degree, and ICAO cell', () => {
   function resultFor(branchId: string, year: number, prevYear: number, unit: number) {
     const fileFor = (b: string, y: number) => `../../public/data/runway-${b === '06/24' ? '06-24' : '07L-25R'}-units-${y}.json`;
     const cur = loadFc(fileFor(branchId, year));
@@ -344,44 +329,79 @@ test('13. the five B-R2 reference units pin the FOD-wins, structural-wins and ti
     return result;
   }
 
-  // Unit 258: FOD axis wins (raveling dominates a structurally clean unit).
-  const u258 = resultFor('06/24', 2026, 2025, 258);
-  assert.equal(u258.fodIndex, 80);
-  assert.equal(u258.fodState, 6);
-  assert.equal(u258.consequenceFod, 15);
-  assert.equal(u258.consequenceStructural, 1);
-  assert.equal(u258.consequence, 15);
+  const cases: Array<[string, number, number, number, number, number, number, number, number, number, number, string]> = [
+    ['06/24', 2025, 2024, 285, 77.02, 40, 4, 7, 3, 4.2, 1, '2D'],
+    ['06/24', 2025, 2024, 36, 66.59, 40, 4, 7, 3, 10.5, 1, '2D'],
+    ['06/24', 2025, 2024, 80, 96.32, 10, 2, 1, 2, 0.2, 1, '1E'],
+    ['06/24', 2025, 2024, 86, 97.5, 10, 2, 1, 6, 0.6, 1, '2E'],
+    ['06/24', 2026, 2025, 16, 45.6, 60, 5, 15, 6, 90, 3, '3C'],
+    ['06/24', 2026, 2025, 258, 59.9, 40, 4, 7, 3, 10.5, 1, '2D'],
+    ['06/24', 2026, 2025, 300, 100, 0, 1, 1, 0.5, 0.05, 1, '1E'],
+    ['07L/25R', 2026, 2025, 59, 49.2, 70, 6, 15, 6, 90, 3, '3C'],
+    ['07L/25R', 2026, 2025, 100, 50.6, 50, 5, 15, 6, 90, 3, '3C'],
+  ];
+  for (const [branch, year, previousYear, unit, pci, index, state, consequence, frequency, riskScore, degree, cell] of cases) {
+    const result = resultFor(branch, year, previousYear, unit);
+    assert.ok(Math.abs(result.pci - pci) < 0.01, `${branch} ${year} unit ${unit} PCI`);
+    assert.equal(result.fodIndex, index, `${branch} ${year} unit ${unit} FODp`);
+    assert.equal(result.fodState, state, `${branch} ${year} unit ${unit} FOD state`);
+    assert.equal(result.consequence, consequence, `${branch} ${year} unit ${unit} C`);
+    assert.equal(result.frequency, frequency, `${branch} ${year} unit ${unit} F`);
+    assert.ok(Math.abs(result.riskScore - riskScore) < 1e-9, `${branch} ${year} unit ${unit} R`);
+    assert.equal(result.band.degree, degree, `${branch} ${year} unit ${unit} degree`);
+    assert.equal(result.icao.cell, cell, `${branch} ${year} unit ${unit} ICAO`);
+  }
+});
 
-  // Unit 16: both axes present, FOD still the larger of the two.
-  const u16 = resultFor('06/24', 2026, 2025, 16);
-  assert.equal(u16.fodIndex, 80);
-  assert.equal(u16.fodState, 6);
-  assert.equal(u16.consequenceFod, 15);
-  assert.equal(u16.consequenceStructural, 7);
-  assert.equal(u16.consequence, 15);
+test('14. B-R3 aggregate acceptance counts match every reference runway/year', () => {
+  const scoreReference = (branchId: string, year: number, previousYear: number) => {
+    const fileFor = (branch: string, surveyYear: number) =>
+      `../../public/data/runway-${branch === '06/24' ? '06-24' : '07L-25R'}-units-${surveyYear}.json`;
+    return scoreUnits(toUnitRiskInputs(
+      branchId,
+      'runway',
+      year,
+      loadFc(fileFor(branchId, year)),
+      loadFc(fileFor(branchId, previousYear)),
+      previousYear,
+    ));
+  };
+  const count = <T>(values: T[], predicate: (value: T) => boolean) => values.filter(predicate).length;
+  const references = [
+    {
+      name: '06/24 2025', results: scoreReference('06/24', 2025, 2024),
+      states: [62, 55, 53, 94, 36, 0, 0], consequences: [117, 53, 94, 36, 0, 0],
+      frequencies: [121, 79, 45, 49, 6, 0], degrees: [295, 5, 0, 0, 0], zones: [0, 26, 274],
+      severities: [0, 0, 36, 147, 117], maxRisk: 45, distinctRisk: 22,
+    },
+    {
+      name: '06/24 2026', results: scoreReference('06/24', 2026, 2025),
+      states: [74, 78, 38, 98, 11, 1, 0], consequences: [152, 38, 98, 12, 0, 0],
+      frequencies: [134, 63, 44, 41, 18, 0], degrees: [291, 8, 1, 0, 0], zones: [0, 15, 285],
+      severities: [0, 0, 12, 136, 152], maxRisk: 90, distinctRisk: 26,
+    },
+    {
+      name: '07L/25R 2026', results: scoreReference('07L/25R', 2026, 2025),
+      states: [5, 48, 43, 103, 113, 48, 0], consequences: [53, 43, 103, 161, 0, 0],
+      frequencies: [41, 60, 122, 129, 8, 0], degrees: [315, 43, 2, 0, 0], zones: [0, 102, 258],
+      severities: [0, 0, 161, 146, 53], maxRisk: 90, distinctRisk: 28,
+    },
+  ];
 
-  // Unit 300: no distress at all - both axes floor at C=1.
-  const u300 = resultFor('06/24', 2026, 2025, 300);
-  assert.equal(u300.fodIndex, 0);
-  assert.equal(u300.fodState, 1);
-  assert.equal(u300.consequenceFod, 1);
-  assert.equal(u300.consequenceStructural, 1);
-  assert.equal(u300.consequence, 1);
-
-  // Unit 59: the two axes tie at 15.
-  const u59 = resultFor('07L/25R', 2026, 2025, 59);
-  assert.equal(u59.fodIndex, 80);
-  assert.equal(u59.consequenceFod, 15);
-  assert.equal(u59.consequenceStructural, 15);
-  assert.equal(u59.consequence, 15);
-
-  // Unit 100: structural axis wins over a smaller FOD reading.
-  const u100 = resultFor('07L/25R', 2026, 2025, 100);
-  assert.equal(u100.fodIndex, 40);
-  assert.equal(u100.fodState, 4);
-  assert.equal(u100.consequenceFod, 7);
-  assert.equal(u100.consequenceStructural, 15);
-  assert.equal(u100.consequence, 15);
+  for (const reference of references) {
+    const { results } = reference;
+    assert.deepEqual(Array.from({ length: 7 }, (_, i) => count(results, (r) => r.fodState === i + 1)), reference.states, `${reference.name} FOD states`);
+    assert.deepEqual([1, 3, 7, 15, 40, 100].map((c) => count(results, (r) => r.consequence === c)), reference.consequences, `${reference.name} C`);
+    assert.deepEqual([0.5, 1, 2, 3, 6, 10].map((f) => count(results, (r) => r.frequency === f)), reference.frequencies, `${reference.name} F`);
+    assert.deepEqual([1, 2, 3, 4, 5].map((degree) => count(results, (r) => r.band.degree === degree)), reference.degrees, `${reference.name} degree`);
+    assert.deepEqual(['Intolerable', 'Tolerable', 'Acceptable'].map((zone) => count(results, (r) => r.icao.zone === zone)), reference.zones, `${reference.name} ICAO zones`);
+    assert.deepEqual(['A', 'B', 'C', 'D', 'E'].map((severity) => count(results, (r) => r.icao.severity === severity)), reference.severities, `${reference.name} ICAO severities`);
+    assert.equal(Math.max(...results.map((r) => r.riskScore)), reference.maxRisk, `${reference.name} maximum R`);
+    // R remains unrounded in the scoring path. Normalise only this set key so
+    // equivalent IEEE-754 spellings such as 4.5 and 4.500000000000001 are one
+    // documented risk value rather than two artificial categories.
+    assert.equal(new Set(results.map((r) => r.riskScore.toFixed(10))).size, reference.distinctRisk, `${reference.name} distinct R`);
+  }
 });
 
 /* =============================================================================

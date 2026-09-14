@@ -1,80 +1,71 @@
 /**
- * fod-index.ts
- * -----------------------------------------------------------------------------
- * Indeks kerusakan benda asing (FODp) dari raveling.
- *
- * Bentuk persamaan: Shah dkk. (2004) persamaan [9] hlm. 614,
- *   indeks = 100 (w_sebaran + w_keparahan) / Maks(w_sebaran + w_keparahan)
- * Bobot tingkat: Shah Tabel 8 hlm. 615, yaitu tabel yang Shah susun sendiri
- * untuk FODp. Tabel 9 hlm. 616 (MTO 1989) SENGAJA TIDAK DIPAKAI: pita
- * kerapatannya dimulai di 10% dan disusun untuk satu seksi jalan, sedangkan
- * kerapatan raveling pada sample unit 600 m2 di data ini bermedian 0,11% dan
- * 0,26% dengan maksimum 19,71%. Dengan pita MTO seluruh unit menumpuk di pita
- * pertama dan sumbu kerapatan mati.
- *
- * State: Shah Tabel 12 hlm. 617. Ambang 30 adalah garis immediate need yang
- * Shah adopsi dari HDM-4, hlm. 614.
- *
- * Yang DIKUTIP: bobot, penyebut, dan batas state.
- * Yang DITETAPKAN penelitian ini: kolom consequence di FOD_STATES.
- * -----------------------------------------------------------------------------
+ * Indeks kerusakan benda asing (FODp) dari raveling dan L&T cracking.
+ * Bentuk indeks mengikuti Shah dkk. (2004) persamaan [9] dan bobot Tabel 8.
+ * Tabel 9 MTO tidak dipakai karena pita kerapatannya mulai di 10%, sehingga
+ * data sample unit ini akan menumpuk di pita pertama dan sumbu kerapatan mati.
  */
 
-import { COVERAGE_DIVISOR_M2 } from '../config/riskScales.ts';
+import { COVERAGE_DIVISOR_M2, LINEAR_INFLUENCE_WIDTH_M } from '../config/riskScales.ts';
 import type { UnitDistress } from './risk-unit.ts';
 
 /** Bobot sebaran raveling, Shah Tabel 8. Dibaca tertinggi lebih dulu. */
-export const FOD_EXTENT_BANDS = [
-  { minPct: 20, weight: 5 }, // High
-  { minPct: 1, weight: 3 },  // Medium
-  { minPct: 0, weight: 1 },  // Low
+export const FOD_RAVELING_EXTENT = [
+  { minPct: 20, weight: 5 },
+  { minPct: 1, weight: 3 },
+  { minPct: 0, weight: 1 },
 ] as const;
 
-/** Bobot keparahan raveling, Shah Tabel 8. */
+/** Bobot sebaran L&T crack, Shah Tabel 8. Dibaca tertinggi lebih dulu. */
+export const FOD_CRACK_EXTENT = [
+  { minPct: 30, weight: 5 },
+  { minPct: 10, weight: 3 },
+  { minPct: 0, weight: 1 },
+] as const;
+
+/** Bobot keparahan Shah Tabel 8 untuk kedua indikator. */
 export const FOD_SEVERITY_WEIGHT = { Low: 1, Medium: 3, High: 5 } as const;
 
-/** Penyebut persamaan [9]: bobot maksimum 5 + 5. */
-export const FOD_INDEX_DENOMINATOR = 10;
+/** Penyebut Shah persamaan [9]: maksimum (5 + 5) + (5 + 5). */
+export const FOD_INDEX_DENOMINATOR = 20;
 
 export type FodState = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
-/**
- * Nilai C per state. INI JEMBATAN PENELITIAN, BUKAN KUTIPAN.
- * Dikurung tiga jangkar:
- *   state 1 memberi C = 1, sama dengan hazard 1 Seven & Yardim (perkerasan baru);
- *   langkah naiknya di indeks 30, garis immediate need Shah hlm. 614;
- *   puncaknya 15, bukan 40, karena pada sumbernya C = 40 disediakan khusus untuk
- *   kerusakan struktur berat yang disertai hilangnya gaya gesek (hazard 22-24).
- */
+export interface FodBreakdown {
+  index: number;
+  state: FodState;
+  ravelingWeight: number;
+  crackWeight: number;
+}
+
+/** Nilai C per state adalah jembatan penelitian, bukan kutipan Shah. */
 export const FOD_STATE_CONSEQUENCE: Record<FodState, number> = {
   1: 1, 2: 1, 3: 3, 4: 7, 5: 15, 6: 15, 7: 15,
 };
 
-/** Indeks 0 sampai 100. Unit tanpa raveling mengembalikan 0. Sebaran memakai
- *  pembagi yang sama dengan coveragePct (COVERAGE_DIVISOR_M2), bukan areaM2
- *  poligon unit; keparahan memakai keparahan raveling tertinggi pada unit. */
-export function fodIndex(distresses: UnitDistress[]): number {
-  const raveling = distresses.filter(
-    (d): d is UnitDistress & { severity: 'Low' | 'Medium' | 'High' } =>
-      d.type === 'RAVELING' && d.quantityUnits === 'SqM' && d.severity !== 'N/A',
-  );
-  if (raveling.length === 0) return 0;
+type Severity = keyof typeof FOD_SEVERITY_WEIGHT;
+type ExtentBand = readonly { minPct: number; weight: number }[];
 
-  const extentPct = (raveling.reduce((sum, d) => sum + d.quantity, 0) / COVERAGE_DIVISOR_M2) * 100;
-  let extentWeight: number = FOD_EXTENT_BANDS[FOD_EXTENT_BANDS.length - 1].weight;
-  for (const band of FOD_EXTENT_BANDS) {
-    if (extentPct >= band.minPct) {
-      extentWeight = band.weight;
-      break;
-    }
-  }
-
-  const severityWeight = Math.max(...raveling.map((d) => FOD_SEVERITY_WEIGHT[d.severity]));
-
-  return (100 * (extentWeight + severityWeight)) / FOD_INDEX_DENOMINATOR;
+function isScoredSeverity(severity: UnitDistress['severity']): severity is Severity {
+  return severity !== 'N/A';
 }
 
-/** State menurut Shah Tabel 12. */
+function extentWeight(extentPct: number, bands: ExtentBand): number {
+  for (const band of bands) {
+    if (extentPct >= band.minPct) return band.weight;
+  }
+  return 0;
+}
+
+function componentWeight(distresses: UnitDistress[], bands: ExtentBand, areaM2: number): number {
+  const scored = distresses.filter((distress): distress is UnitDistress & { severity: Severity } => isScoredSeverity(distress.severity));
+  if (scored.length === 0) return 0;
+
+  const extentPct = (areaM2 / COVERAGE_DIVISOR_M2) * 100;
+  const severityWeight = Math.max(...scored.map((distress) => FOD_SEVERITY_WEIGHT[distress.severity]));
+  return extentWeight(extentPct, bands) + severityWeight;
+}
+
+/** State FODp menurut Shah Tabel 12. */
 export function fodState(index: number): FodState {
   if (index > 80) return 7;
   if (index >= 65) return 6;
@@ -85,6 +76,35 @@ export function fodState(index: number): FodState {
   return 1;
 }
 
+/**
+ * Menghitung komponen Shah [9] sekali saja. Distress yang tidak ada memberi
+ * bobot 0, bukan bobot terendah; L&T metres dikonversi memakai lebar pengaruh
+ * yang sama dengan coveragePct sebelum sebarannya diklasifikasikan.
+ */
+export function fodBreakdown(distresses: UnitDistress[]): FodBreakdown {
+  const raveling = distresses.filter((distress) => distress.type === 'RAVELING' && distress.quantityUnits === 'SqM');
+  // L&T cracking is a linear FODp variable. Treat it as metres by type rather
+  // than trusting an occasional legacy quantity-unit label in the survey JSON.
+  const cracks = distresses.filter((distress) => distress.type === 'L & T CR');
+  const ravelingWeight = componentWeight(
+    raveling,
+    FOD_RAVELING_EXTENT,
+    raveling.reduce((sum, distress) => sum + distress.quantity, 0),
+  );
+  const crackWeight = componentWeight(
+    cracks,
+    FOD_CRACK_EXTENT,
+    cracks.reduce((sum, distress) => sum + distress.quantity * LINEAR_INFLUENCE_WIDTH_M, 0),
+  );
+  const index = (100 * (ravelingWeight + crackWeight)) / FOD_INDEX_DENOMINATOR;
+  return { index, state: fodState(index), ravelingWeight, crackWeight };
+}
+
+/** Indeks FODp 0–100. Gunakan fodBreakdown ketika komponen juga dibutuhkan. */
+export function fodIndex(distresses: UnitDistress[]): number {
+  return fodBreakdown(distresses).index;
+}
+
 export function consequenceFod(distresses: UnitDistress[]): number {
-  return FOD_STATE_CONSEQUENCE[fodState(fodIndex(distresses))];
+  return FOD_STATE_CONSEQUENCE[fodBreakdown(distresses).state];
 }

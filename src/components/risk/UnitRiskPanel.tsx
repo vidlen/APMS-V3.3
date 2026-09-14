@@ -66,9 +66,6 @@ export default function UnitRiskPanel({
   const [zoneFilter, setZoneFilter] = useState<"all" | Zone>("all");
   const [degreeFilter, setDegreeFilter] = useState<"all" | number>("all");
   const [rateFilter, setRateFilter] = useState<"all" | ObservedRateClass>("all");
-  // Section 0.6.2: dummy-PCI rows must be clearly marked AND filterable out -
-  // defaults to hidden since a thesis-facing table should default to real data.
-  const [hideDummyPci, setHideDummyPci] = useState(true);
   // Section 9.3: the mode actually used when explaining the two variants -
   // narrows the table to units that disagree between A and B.
   const [showShiftedOnly, setShowShiftedOnly] = useState(false);
@@ -98,7 +95,6 @@ export default function UnitRiskPanel({
 
   const rows = useMemo(() => {
     let filtered = results.filter((r) => {
-      if (hideDummyPci && !r.pciIsReal) return false;
       if (zoneFilter !== "all" && r.zone !== zoneFilter) return false;
       if (degreeFilter !== "all" && r.band.degree !== degreeFilter) return false;
       if (rateFilter !== "all" && r.observedRateClass !== rateFilter) return false;
@@ -112,7 +108,7 @@ export default function UnitRiskPanel({
       );
     }
     return filtered;
-  }, [results, hideDummyPci, zoneFilter, degreeFilter, rateFilter, selectedCell, showShiftedOnly, shiftByUnit]);
+  }, [results, zoneFilter, degreeFilter, rateFilter, selectedCell, showShiftedOnly, shiftByUnit]);
 
   const degreeCounts = useMemo(() => {
     const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -138,7 +134,7 @@ export default function UnitRiskPanel({
     );
   }
 
-  const colSpan = 13 + (showShiftedOnly ? 3 : 0);
+  const colSpan = 14 + (showShiftedOnly ? 3 : 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -193,18 +189,6 @@ export default function UnitRiskPanel({
           </Select>
 
           <button
-            onClick={() => setHideDummyPci((v) => !v)}
-            className={`h-8 px-3 rounded-md text-xs font-medium border transition-colors ${
-              hideDummyPci
-                ? "border-border text-foreground hover:bg-secondary"
-                : "border-primary text-primary bg-primary/10"
-            }`}
-            title="Units whose PCI is a display filler, not a survey result - see section 0.6"
-          >
-            {hideDummyPci ? "Dummy PCI hidden" : "Dummy PCI shown"}
-          </button>
-
-          <button
             onClick={() => setShowShiftedOnly((v) => !v)}
             className={`h-8 px-3 rounded-md text-xs font-medium border transition-colors ${
               showShiftedOnly
@@ -256,10 +240,11 @@ export default function UnitRiskPanel({
                 <TableHead className="px-2">Unit</TableHead>
                 <TableHead className="px-2">Station</TableHead>
                 <TableHead className="px-2">Zone</TableHead>
-                <TableHead className="px-2">TDV</TableHead>
+                <TableHead className="px-2">PCI</TableHead>
                 <TableHead className="px-2">Coverage</TableHead>
                 <TableHead className="px-2">L</TableHead>
                 <TableHead className="px-2">F</TableHead>
+                <TableHead className="px-2">FODp</TableHead>
                 <TableHead className="px-2">C</TableHead>
                 <TableHead className="px-2">R</TableHead>
                 <TableHead className="px-2">Degree</TableHead>
@@ -310,10 +295,16 @@ export default function UnitRiskPanel({
                     </TableCell>
                     <TableCell className="px-2 py-1 font-mono text-xs tabular-nums">{r.stationKm.toFixed(2)}</TableCell>
                     <TableCell className="px-2 py-1 text-xs">{ZONE_LABELS[r.zone]}</TableCell>
-                    <TableCell className="px-2 py-1 font-mono text-xs tabular-nums">{r.tdv.toFixed(2)}</TableCell>
+                    <TableCell className="px-2 py-1 font-mono text-xs tabular-nums">{r.pci.toFixed(2)}</TableCell>
                     <TableCell className="px-2 py-1 font-mono text-xs tabular-nums">{r.coveragePct.toFixed(3)}%</TableCell>
                     <TableCell className="px-2 py-1 font-mono text-xs tabular-nums">{r.likelihood}</TableCell>
                     <TableCell className="px-2 py-1 font-mono text-xs tabular-nums">{r.frequency}</TableCell>
+                    <TableCell
+                      className="px-2 py-1 font-mono text-xs tabular-nums whitespace-nowrap"
+                      title={`FODp state ${r.fodState}: raveling wRj ${r.fodRavelingWeight}; L&T wLj ${r.fodCrackWeight}`}
+                    >
+                      {r.fodIndex.toFixed(1)} / {r.fodState}
+                    </TableCell>
                     <TableCell className="px-2 py-1 font-mono text-xs tabular-nums">{r.consequence}</TableCell>
                     <TableCell className="px-2 py-1 font-mono text-xs font-semibold tabular-nums">
                       {r.riskScore.toFixed(1)}
@@ -394,15 +385,9 @@ export default function UnitRiskPanel({
                               {likelihoodSource === "pci" && " ← used"}
                             </span>
                           </div>
-                          <div className="flex items-center gap-3 mb-2 text-[11px]" title="S/K/G = structural / friction / roughness state">
-                            <span className={r.consequenceStructural >= r.consequence ? "text-foreground font-semibold" : "text-muted-foreground"}>
-                              C structural (S{r.structuralState} K{r.frictionState} G{r.roughnessState}) {r.consequenceStructural}
-                              {r.consequenceStructural >= r.consequence && " ← used"}
-                            </span>
-                            <span className={r.consequenceFod >= r.consequence ? "text-foreground font-semibold" : "text-muted-foreground"}>
-                              C fod (idx {r.fodIndex.toFixed(1)}, state {r.fodState}) {r.consequenceFod}
-                              {r.consequenceFod >= r.consequence && " ← used"}
-                            </span>
+                          <div className="mb-2 rounded-sm bg-secondary/50 px-2 py-1.5 text-[11px] text-foreground" title="Consequence is derived only from the FODp index">
+                            <span className="font-semibold">FODp {r.fodIndex.toFixed(1)} · state {r.fodState} · C {r.consequence}</span>
+                            <span className="text-muted-foreground"> — raveling wRj {r.fodRavelingWeight}; L&amp;T wLj {r.fodCrackWeight}</span>
                           </div>
                           <ul className="space-y-1.5">
                             {r.trace.map((line, i) => (
