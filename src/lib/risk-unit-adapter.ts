@@ -151,30 +151,35 @@ export function toUnitRiskInputs(
 
   const pciIsReal = isPciReal(branchId);
 
-  return currentYearFc.features.map((feature) => {
-    const props = feature.properties as unknown as SampleUnitProperties;
-    const unitNumber = props.sampleUnit;
-    const prevProps = previousByUnit.get(unitNumber);
-    const { areaM2, isNominal } = resolveUnitArea(feature);
-    const distresses = (props.distresses ?? []).map(toUnitDistress);
+  return currentYearFc.features
+    .map((feature) => {
+      const props = feature.properties as unknown as SampleUnitProperties;
+      const unitNumber = props.sampleUnit;
+      const prevProps = previousByUnit.get(unitNumber);
+      const { areaM2, isNominal } = resolveUnitArea(feature);
+      const distresses = (props.distresses ?? []).map(toUnitDistress);
 
-    return {
-      branchId,
-      unitNumber,
-      stationKm: (unitNumber - 1) * 0.01,
-      zone: zoneFor(unitNumber),
-      areaM2,
-      areaIsNominal: isNominal,
-      surveyYear: year,
-      role,
-      distresses,
-      pci: props.pci_score,
-      pciIsReal,
-      previousPci: prevProps?.pci_score,
-      previousPciIsReal: prevProps ? pciIsReal : undefined,
-      previousSurveyYear: prevProps ? previousYear : undefined,
-      repairedSincePrevious: false,
-      astmConsistent: astmConsistent(props.pci_score, distresses),
-    };
-  });
+      return {
+        branchId,
+        unitNumber,
+        stationKm: (unitNumber - 1) * 0.01,
+        zone: zoneFor(unitNumber),
+        areaM2,
+        areaIsNominal: isNominal,
+        surveyYear: year,
+        role,
+        distresses,
+        pci: props.pci_score,
+        pciIsReal,
+        previousPci: prevProps?.pci_score,
+        previousPciIsReal: prevProps ? pciIsReal : undefined,
+        previousSurveyYear: prevProps ? previousYear : undefined,
+        repairedSincePrevious: false,
+        astmConsistent: astmConsistent(props.pci_score, distresses),
+      };
+    })
+    // Display order only - GeoJSON feature order isn't guaranteed to match
+    // sampleUnit order (it doesn't for the 2026 exports), and every table
+    // downstream renders in array order.
+    .sort((a, b) => a.unitNumber - b.unitNumber);
 }
