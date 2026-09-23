@@ -117,8 +117,7 @@ export interface RepairLogAggregate {
 /* =============================================================================
  * VALIDATION
  *
- * A converted file is a trust boundary, the same way Teammate A's forecast is
- * (validateMarkovForecast, markov-forecast.ts). Validate every field rather
+ * A converted file is a trust boundary. Validate every field rather
  * than assuming the converter's output matches the contract. A malformed row
  * fails the WHOLE import rather than dropping one branch back to a weaker
  * evidence source unnoticed.

@@ -3,8 +3,7 @@
  * -----------------------------------------------------------------------------
  * Classifies a sample unit's one-year PCI change into a deterioration-rate
  * bucket. This is descriptive, not predictive: it reads a PCI delta that has
- * already happened, and takes no view on what happens next (that's
- * markov-forecast.ts, out of scope for Metode B).
+ * already happened, and takes no view on what happens next.
  *
  * Gated on data authenticity: a class here is only meaningful when both PCI
  * figures being differenced came from an actual survey. `pciIsReal`/

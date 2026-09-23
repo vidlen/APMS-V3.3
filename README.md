@@ -15,9 +15,5 @@ This tab features a layout of Soekarno-Hatta International Airport that consist 
 This tab feautures calculation of risk using two methods. One method is derived from Safety Management Manual and Safety Risk Matrix which are introduced in ICAO Doc 9859. The other method used is Fine-Kinney method which calculated risk using empirical equation.
 
 
-# PCI Prediction
-This tab feautures calculation of PCI prediction using Markov Chain. The tab uses two different method for calculating which are satndard markov and Bayesian Method (Dirichlet Smoothing) to tackle the short data spread.
-
-
 # Admin Page
 Admin page is a feature used to edit or add datasets inside the web. Admin page is used to add a new survey year datasets or edit PCI value of a branch. Inside admin page there are GEOJSON templates to help admins for editing branch information simultaneously.

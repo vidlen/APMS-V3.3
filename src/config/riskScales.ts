@@ -33,8 +33,8 @@
  * DEVIATION FROM [2] (state this in your methodology chapter):
  *   Seven & Yardim obtain Likelihood from a survey of six Istanbul Airport
  *   experts and take the modal response. This implementation derives Likelihood
- *   from the Markov condition forecast instead, so the score recomputes when a
- *   new survey year is loaded. Frequency and Consequence remain rule-based,
+ *   from each sample unit's ASTM total deduct value or PCI instead, so the
+ *   score recomputes when a new survey year is loaded. Frequency and Consequence remain rule-based,
  *   because both depend on operational role rather than pavement condition.
  * -----------------------------------------------------------------------------
  */
