@@ -28,7 +28,6 @@ const runwaySurveyFiles = [
 
 const allowedNegativePciCorrelations = new Set([
   '06/24:2025-2026',
-  '07L/25R:2025-2026',
 ]);
 
 function featuresBySampleUnit(fc: GeoJSONFeatureCollection) {
@@ -109,6 +108,18 @@ test('runway geometry for each sample unit is identical across every survey year
         );
       }
     }
+  }
+});
+
+test('sample unit 1 sits at the eastern threshold (24 / 25R) on both runways', () => {
+  const meanLon = (feature: GeoJSONFeatureCollection['features'][number]) => {
+    const ring = (feature.geometry.coordinates as unknown as number[][][])[0];
+    return ring.reduce((sum, [lon]) => sum + lon, 0) / ring.length;
+  };
+  for (const { branchId, fileStem, years } of runwaySurveyFiles) {
+    const units = featuresBySampleUnit(loadFc(`../../public/data/${fileStem}-units-${years[0]}.json`));
+    const last = Math.max(...units.keys());
+    assert.ok(meanLon(units.get(1)!) > meanLon(units.get(last)!), `${branchId}: unit 1 is not east of unit ${last}`);
   }
 });
 

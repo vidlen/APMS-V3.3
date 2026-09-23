@@ -314,8 +314,10 @@ test('12. the B-R3 pinned units land on their documented degrees', () => {
   assert.equal(degreeFor('06/24', 2025, 2024, 285, 'pci'), 1);
   assert.equal(degreeFor('06/24', 2026, 2025, 16, 'pci'), 3);
   assert.equal(degreeFor('06/24', 2026, 2025, 300, 'pci'), 1);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'pci'), 3);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 100, 'pci'), 3);
+  // 07L/25R 2026 pins were units 59/100 before sample unit 1 moved to the
+  // 25R end; same survey payload, now labelled 302/261.
+  assert.equal(degreeFor('07L/25R', 2026, 2025, 302, 'pci'), 3);
+  assert.equal(degreeFor('07L/25R', 2026, 2025, 261, 'pci'), 3);
 });
 
 test('13. B-R3 acceptance fixtures pin FODp, C, F, R, degree, and ICAO cell', () => {
@@ -337,8 +339,8 @@ test('13. B-R3 acceptance fixtures pin FODp, C, F, R, degree, and ICAO cell', ()
     ['06/24', 2026, 2025, 16, 45.6, 60, 5, 15, 6, 90, 3, '3C'],
     ['06/24', 2026, 2025, 258, 59.9, 40, 4, 7, 3, 10.5, 1, '2D'],
     ['06/24', 2026, 2025, 300, 100, 0, 1, 1, 0.5, 0.05, 1, '1E'],
-    ['07L/25R', 2026, 2025, 59, 49.2, 70, 6, 15, 6, 90, 3, '3C'],
-    ['07L/25R', 2026, 2025, 100, 50.6, 50, 5, 15, 6, 90, 3, '3C'],
+    ['07L/25R', 2026, 2025, 302, 49.2, 70, 6, 15, 6, 90, 3, '3C'],
+    ['07L/25R', 2026, 2025, 261, 50.6, 50, 5, 15, 6, 90, 3, '3C'],
   ];
   for (const [branch, year, previousYear, unit, pci, index, state, consequence, frequency, riskScore, degree, cell] of cases) {
     const result = resultFor(branch, year, previousYear, unit);
