@@ -518,6 +518,9 @@ export const DISTRESS_ALIASES: Record<string, string> = {
   'LONGITUDINAL & TRANSVERSE CRACKING': 'L & T CR',
   'LONGITUDINAL/TRANSVERSE CRACKING': 'L & T CR',
   'JOINT REFLECTION CRACKING': 'JT REFLECTION CR',
+
+  // --- PAVER Excel export abbreviations (Admin -> PAVER import) ---
+  'JT REF. CR': 'JT REFLECTION CR',
 };
 
 /**

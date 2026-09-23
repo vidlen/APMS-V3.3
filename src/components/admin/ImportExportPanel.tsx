@@ -1,9 +1,11 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
-import { Download, Upload, RotateCcw } from "lucide-react";
+import { Download, Upload, RotateCcw, FileSpreadsheet } from "lucide-react";
+import readXlsxFile from "read-excel-file/universal";
 import { useData, useSectionsWithUnits, useEffectiveYearData } from "@/lib/data-store";
+import { findPaverSheets, paverToUnits } from "@/lib/paver-import";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,8 +29,9 @@ export default function ImportExportPanel({ year }: ImportExportPanelProps) {
   const sectionsWithUnits = useSectionsWithUnits(year);
 
   const sectionsFileInput = useRef<HTMLInputElement>(null);
-  const unitsFileInput = useRef<HTMLInputElement>(null);
-  const [unitsSectionName, setUnitsSectionName] = useState("");
+  const excelFileInput = useRef<HTMLInputElement>(null);
+  const [pickedSection, setPickedSection] = useState("");
+  const excelSection = sectionsWithUnits.includes(pickedSection) ? pickedSection : (sectionsWithUnits[0] ?? "");
 
   const handleDownloadSections = () => {
     if (!sectionsFC) {
@@ -60,22 +63,46 @@ export default function ImportExportPanel({ year }: ImportExportPanelProps) {
     toast.success(`Imported section geometry for ${year}`);
   };
 
-  const handleImportUnitsFile = async (e: ChangeEvent<HTMLInputElement>) => {
+  // PAVER Excel: PCI + distresses only, onto the runway's existing polygons.
+  const handleImportExcelFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    const section = unitsSectionName.trim();
-    if (!section) {
-      toast.error("Enter a section name (e.g. 06/24) before importing units.");
+    const base = unitsBySection[excelSection];
+    if (!base) {
+      toast.error(`No sample-unit map for ${excelSection || "this runway"} in ${year}.`);
       return;
     }
-    const result = await parseGeoJSONFile(file);
+    let sheets;
+    try {
+      sheets = await readXlsxFile(file);
+    } catch {
+      toast.error("Could not read the file as an Excel workbook (.xlsx).");
+      return;
+    }
+    const { pci, distress } = findPaverSheets(sheets);
+    if (!pci || !distress) {
+      toast.error('Workbook needs a PCI sheet ("Sample Number", "PCI …") and a distress sheet ("Description", "Severity", "Deduct", …).');
+      return;
+    }
+    const result = paverToUnits(base, pci, distress);
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
-    importUnitsGeoJSON(year, section, result.data);
-    toast.success(`Imported sample units for ${section} (${year})`);
+    importUnitsGeoJSON(year, excelSection, result.data);
+    const { samples, distresses, movedByCoordinate, onMatchingPolygon } = result.report;
+    toast.success(`Imported ${samples} sample units and ${distresses} distresses for ${excelSection} (${year})`, {
+      description: movedByCoordinate
+        ? `${movedByCoordinate} distress rows were placed by their coordinate because their Sample Number column disagreed.`
+        : undefined,
+    });
+    if (onMatchingPolygon < samples) {
+      toast.warning(
+        `Only ${onMatchingPolygon} of ${samples} sample coordinates fall on the map unit with the same number. Check the sample-unit numbering direction.`,
+        { duration: 10000 }
+      );
+    }
   };
 
   return (
@@ -104,7 +131,44 @@ export default function ImportExportPanel({ year }: ImportExportPanelProps) {
       </div>
 
       <div className="space-y-2">
-        <p className="panel-label">Import GeoJSON (EPSG:4326 / CRS84 only)</p>
+        <p className="panel-label">Import sample-unit survey (PAVER Excel .xlsx)</p>
+        <p className="text-xs text-muted-foreground">
+          Takes PCI per sample unit and the distress list. Dimension, PCN and last major construction are
+          edited in the section table above.
+        </p>
+        {sectionsWithUnits.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No runway with a sample-unit map in {year}.</p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={excelSection} onValueChange={setPickedSection}>
+              <SelectTrigger className="h-8 w-36 text-xs" aria-label="Runway">
+                <SelectValue placeholder="Runway" />
+              </SelectTrigger>
+              <SelectContent>
+                {sectionsWithUnits.map((section) => (
+                  <SelectItem key={section} value={section}>
+                    RWY {section}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => excelFileInput.current?.click()}>
+              <FileSpreadsheet size={13} />
+              Upload Excel
+            </Button>
+            <input
+              ref={excelFileInput}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={handleImportExcelFile}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <p className="panel-label">Import section geometry (GeoJSON, EPSG:4326 / CRS84 only)</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => sectionsFileInput.current?.click()}>
             <Upload size={13} />
@@ -116,25 +180,6 @@ export default function ImportExportPanel({ year }: ImportExportPanelProps) {
             accept=".json,.geojson,application/json,application/geo+json"
             className="hidden"
             onChange={handleImportSectionsFile}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            placeholder="Section name, e.g. 06/24"
-            value={unitsSectionName}
-            onChange={(e) => setUnitsSectionName(e.target.value)}
-            className="h-8 w-44"
-          />
-          <Button variant="outline" size="sm" onClick={() => unitsFileInput.current?.click()}>
-            <Upload size={13} />
-            Upload sample units
-          </Button>
-          <input
-            ref={unitsFileInput}
-            type="file"
-            accept=".json,.geojson,application/json,application/geo+json"
-            className="hidden"
-            onChange={handleImportUnitsFile}
           />
         </div>
       </div>

@@ -112,10 +112,10 @@ function getSectionsWithUnitsForYear(
   years: YearMeta[],
   overrides: DataOverrides
 ): string[] {
-  if (overrides.uploadedUnits[year]) return Object.keys(overrides.uploadedUnits[year]);
+  // Union, not either/or: importing one runway must not hide the other.
   const seedId = resolveSeedAncestor(year, years);
-  if (!seedId) return [];
-  return Object.keys(SEED_SAMPLE_UNIT_SOURCES[seedId] ?? {});
+  const seeded = seedId ? Object.keys(SEED_SAMPLE_UNIT_SOURCES[seedId] ?? {}) : [];
+  return [...new Set([...seeded, ...Object.keys(overrides.uploadedUnits[year] ?? {})])];
 }
 
 async function fetchBaseSections(
@@ -360,6 +360,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  // A fresh survey import replaces the section's hand-edited unit scores too,
+  // otherwise those old edits would silently sit on top of the new PCI.
   const importUnitsGeoJSON = useCallback(
     (year: string, section: string, fc: GeoJSONFeatureCollection) => {
       setOverrides((prev) => ({
@@ -368,6 +370,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ...prev.uploadedUnits,
           [year]: { ...(prev.uploadedUnits[year] ?? {}), [section]: fc },
         },
+        unitScores: { ...prev.unitScores, [year]: omitKey(prev.unitScores[year] ?? {}, section) },
       }));
     },
     []
