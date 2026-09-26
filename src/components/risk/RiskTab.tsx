@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { ChevronLeft, Download, Map as MapIcon, Table as TableIcon } from "lucide-react";
 import type { SectionData } from "@/lib/pci-utils";
 import type { SurveyYear } from "@/lib/survey-years";
 import type { GeoJSONFeatureCollection } from "@/lib/geojson-types";
@@ -9,14 +9,15 @@ import { usePavementData } from "@/hooks/usePavementData";
 import { toUnitRiskInputs } from "@/lib/risk-unit-adapter";
 import { scoreUnits, type UnitRiskResult } from "@/lib/risk-unit";
 import { downloadUnitRiskResultsCsv } from "@/lib/risk-unit-export";
-import { ICAO_GRID_PROVENANCE } from "@/config/icaoMatrix";
-import { DEFAULT_LIKELIHOOD_SOURCE, type LikelihoodSource } from "@/config/riskScales";
+import { ICAO_GRID_PROVENANCE, ICAO_ZONES, type IcaoZoneName } from "@/config/icaoMatrix";
+import { DEFAULT_LIKELIHOOD_SOURCE, RISK_BANDS, type LikelihoodSource } from "@/config/riskScales";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import IcaoMatrixPanel from "./IcaoMatrixPanel";
 import DistressCoveragePanel from "./DistressCoveragePanel";
 import RiskMethodologyPanel from "./RiskMethodologyPanel";
 import VariantComparisonPanel from "./VariantComparisonPanel";
-import UnitRiskPanel from "./UnitRiskPanel";
+import UnitRiskPanel, { UnitDetail } from "./UnitRiskPanel";
+import RiskMapView from "./RiskMapView";
 
 interface RiskTabProps {
   sections: SectionData[];
@@ -56,6 +57,9 @@ const RUNWAY_OPTIONS: { id: string; label: string }[] = [
   { id: "07L/25R", label: "RWY 07L/25R" },
 ];
 
+type RiskView = "map" | "table";
+type ColorBy = "degree" | "icao";
+
 export default function RiskTab({
   sections,
   selectedYear,
@@ -63,8 +67,12 @@ export default function RiskTab({
   repairLogByBranch = EMPTY_LOG,
   repairLogStats = EMPTY_STATS,
 }: RiskTabProps) {
+  // Map first, like the PCI tab; the table keeps the full register and panels.
+  const [view, setView] = useState<RiskView>("map");
   const [branchId, setBranchId] = useState<string>(RUNWAY_OPTIONS[0].id);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
+  const [colorBy, setColorBy] = useState<ColorBy>("degree");
   // Section 9.1: runtime state, not persisted to localStorage - every session
   // starts on DEFAULT_LIKELIHOOD_SOURCE.
   const [likelihoodSource, setLikelihoodSource] = useState<LikelihoodSource>(DEFAULT_LIKELIHOOD_SOURCE);
@@ -115,36 +123,57 @@ export default function RiskTab({
     setSelectedCell((prev) => (prev === cell ? null : cell));
   };
 
+  const handleSelectBranch = (id: string) => {
+    setBranchId(id);
+    // Unit numbers repeat across runways - a selection can't carry over.
+    setSelectedUnit(null);
+  };
+
+  const selectedResult = results.find((r) => r.unitNumber === selectedUnit);
+  // Map legend rows for whichever scheme colours the units.
+  const legend = useMemo(
+    () =>
+      colorBy === "degree"
+        ? RISK_BANDS.map((b) => ({
+            key: String(b.degree),
+            color: b.color,
+            label: `Degree ${b.degree}`,
+            detail: b.situation,
+            count: results.filter((r) => r.band.degree === b.degree).length,
+          }))
+        : (Object.keys(ICAO_ZONES) as IcaoZoneName[]).map((z) => ({
+            key: z,
+            color: ICAO_ZONES[z].color,
+            label: z,
+            detail: ICAO_ZONES[z].action,
+            count: results.filter((r) => r.icao.zone === z).length,
+          })),
+    [colorBy, results],
+  );
+
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8 space-y-5">
-      <div>
-        <h2 className="font-condensed text-xl font-semibold tracking-tight text-foreground">
-          Risk Management
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1 max-w-[70ch]">
-          Sample-unit level Fine-Kinney scoring (Metode B) for RWY 06/24 and RWY 07L/25R, using
-          ICAO Doc 9859 for the operational verdict.
-        </p>
-        <p className="text-xs text-muted-foreground/80 italic mt-1 max-w-[70ch]">
-          Calculated only using processes found in literature, not yet adhering to Angkasa Pura's SMS.
-          Still subject to change.
-        </p>
-      </div>
-
-      <p className="text-[11px] text-muted-foreground border border-dashed border-border rounded-md px-3 py-2">
-        {ICAO_GRID_PROVENANCE}
-      </p>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ToggleGroup type="single" variant="outline" size="sm" value={branchId} onValueChange={(v) => v && setBranchId(v)}>
-          {RUNWAY_OPTIONS.map((r) => (
-            <ToggleGroupItem key={r.id} value={r.id}>
-              {r.label}
+    <div className="h-full flex flex-col">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-card border-b border-border">
+        <div className="flex flex-wrap items-center gap-3">
+          <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as RiskView)}>
+            <ToggleGroupItem value="map" aria-label="Map view">
+              <MapIcon size={13} /> Map
             </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+            <ToggleGroupItem value="table" aria-label="Table view">
+              <TableIcon size={13} /> Table
+            </ToggleGroupItem>
+          </ToggleGroup>
 
-        <div className="flex items-center gap-2">
+          <ToggleGroup type="single" variant="outline" size="sm" value={branchId} onValueChange={(v) => v && handleSelectBranch(v)}>
+            {RUNWAY_OPTIONS.map((r) => (
+              <ToggleGroupItem key={r.id} value={r.id}>
+                {r.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Likelihood</span>
           <ToggleGroup
             type="single"
@@ -170,29 +199,132 @@ export default function RiskTab({
         </div>
       </div>
 
-      <IcaoMatrixPanel results={results} selectedCell={selectedCell} onSelectCell={handleSelectCell} likelihoodSource={likelihoodSource} />
+      {view === "map" ? (
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+          <div className="relative flex-1 min-h-[300px]">
+            <RiskMapView
+              units={currentUnitsBySection[branchId]}
+              results={results}
+              selectedUnit={selectedUnit}
+              onSelectUnit={setSelectedUnit}
+              selectedCell={selectedCell}
+              colorBy={colorBy}
+            />
+            {selectedCell && (
+              <button
+                onClick={() => setSelectedCell(null)}
+                className="panel-surface absolute top-3 right-3 z-10 h-8 px-3 rounded-md text-xs font-medium text-primary"
+              >
+                Cell {selectedCell} &middot; Clear
+              </button>
+            )}
+          </div>
 
-      <VariantComparisonPanel resultsA={resultsA} resultsB={resultsB} />
+          <aside className="shrink-0 md:w-[440px] max-h-[50%] md:max-h-none overflow-y-auto custom-scrollbar bg-card border-t md:border-t-0 md:border-l border-border">
+            {loading ? (
+              <div className="text-sm text-muted-foreground px-4 py-10 text-center">Loading sample units...</div>
+            ) : results.length === 0 ? (
+              <div className="text-sm text-muted-foreground px-4 py-10 text-center">
+                No sample-unit data for this runway in {selectedYear}.
+              </div>
+            ) : selectedResult ? (
+              <div className="p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedUnit(null)}
+                    className="p-1 -ml-1 rounded-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label="Back to all units"
+                    title="Back to all units"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <h3 className="panel-label">
+                    {RUNWAY_OPTIONS.find((o) => o.id === branchId)?.label} &middot; Unit{" "}
+                    <span className="text-foreground">{selectedResult.unitNumber}</span>
+                  </h3>
+                </div>
+                <UnitDetail r={selectedResult} />
+              </div>
+            ) : (
+              <div className="p-4 space-y-5">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="panel-label">
+                      {colorBy === "degree" ? "Fine-Kinney degree" : "ICAO zone"} &mdash; {results.length} units
+                    </h3>
+                    <ToggleGroup type="single" variant="outline" size="sm" value={colorBy} onValueChange={(v) => v && setColorBy(v as ColorBy)}>
+                      <ToggleGroupItem value="degree" title="Colour units by Fine-Kinney degree (R = L × F × C)">
+                        Fine-Kinney
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="icao" title="Colour units by ICAO Doc 9859 risk zone">
+                        ICAO
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+                  <ul>
+                    {legend.map((row) => (
+                      <li key={row.key} className="hairline-row flex items-center gap-3 py-2 text-xs">
+                        <span className="w-3.5 h-3.5 rounded-sm shrink-0" style={{ backgroundColor: row.color }} />
+                        <span className="font-medium text-foreground shrink-0">{row.label}</span>
+                        <span className="text-muted-foreground truncate" title={row.detail}>{row.detail}</span>
+                        <span className="ml-auto font-mono tabular-nums text-foreground">{row.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-muted-foreground mt-2">Click a unit on the map for its score.</p>
+                </div>
+                <IcaoMatrixPanel results={results} selectedCell={selectedCell} onSelectCell={handleSelectCell} />
+              </div>
+            )}
+          </aside>
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="max-w-6xl mx-auto px-6 py-8 space-y-5">
+            <div>
+              <h2 className="font-condensed text-xl font-semibold tracking-tight text-foreground">
+                Risk Management
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1 max-w-[70ch]">
+                Sample-unit level Fine-Kinney scoring (Metode B) for RWY 06/24 and RWY 07L/25R, using
+                ICAO Doc 9859 for the operational verdict.
+              </p>
+              <p className="text-xs text-muted-foreground/80 italic mt-1 max-w-[70ch]">
+                Calculated only using processes found in literature, not yet adhering to Angkasa Pura's SMS.
+                Still subject to change.
+              </p>
+            </div>
 
-      <DistressCoveragePanel
-        stats={repairLogStats}
-        coveredBranches={coveredBranches}
-        totalBranches={sections.length}
-        sampleUnitBranchCount={Object.keys(unitsBySection).length}
-      />
+            <p className="text-[11px] text-muted-foreground border border-dashed border-border rounded-md px-3 py-2">
+              {ICAO_GRID_PROVENANCE}
+            </p>
 
-      <RiskMethodologyPanel results={results} likelihoodSource={likelihoodSource} />
+            <IcaoMatrixPanel results={results} selectedCell={selectedCell} onSelectCell={handleSelectCell} />
 
-      <UnitRiskPanel
-        selectedYear={selectedYear}
-        results={results}
-        compareA={resultsA}
-        compareB={resultsB}
-        likelihoodSource={likelihoodSource}
-        loading={loading}
-        selectedCell={selectedCell}
-        onClearCellFilter={() => setSelectedCell(null)}
-      />
+            <VariantComparisonPanel resultsA={resultsA} resultsB={resultsB} />
+
+            <DistressCoveragePanel
+              stats={repairLogStats}
+              coveredBranches={coveredBranches}
+              totalBranches={sections.length}
+              sampleUnitBranchCount={Object.keys(unitsBySection).length}
+            />
+
+            <RiskMethodologyPanel results={results} likelihoodSource={likelihoodSource} />
+
+            <UnitRiskPanel
+              selectedYear={selectedYear}
+              results={results}
+              compareA={resultsA}
+              compareB={resultsB}
+              likelihoodSource={likelihoodSource}
+              loading={loading}
+              selectedCell={selectedCell}
+              onClearCellFilter={() => setSelectedCell(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

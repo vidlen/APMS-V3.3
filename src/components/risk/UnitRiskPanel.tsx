@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, Info, ShieldAlert } from "lucide-react";
 import type { SurveyYear } from "@/lib/survey-years";
 import { type UnitRiskResult, type Zone } from "@/lib/risk-unit";
-import type { ObservedRateClass } from "@/lib/observed-rate";
+import { OBSERVED_RATE_THRESHOLDS, type ObservedRateClass } from "@/lib/observed-rate";
 import type { LikelihoodSource } from "@/config/riskScales";
 import { RISK_BANDS } from "@/config/riskScales";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,6 +33,15 @@ const RATE_LABELS: Record<ObservedRateClass, string> = {
   tidak_terdefinisi: "Undefined",
 };
 
+const { stabilMax, memburukMax } = OBSERVED_RATE_THRESHOLDS;
+const RATE_CAPTIONS: Record<ObservedRateClass, string> = {
+  stabil: `PCI dropped ${stabilMax} points or less (or rose) since the previous survey year`,
+  memburuk: `PCI dropped more than ${stabilMax} and up to ${memburukMax} points since the previous survey year`,
+  memburuk_cepat: `PCI dropped more than ${memburukMax} points since the previous survey year`,
+  tidak_terdefinisi:
+    "No comparable previous survey: PCI missing or a display filler, or the two years were surveyed under different regimes",
+};
+
 const RATE_COLORS: Record<ObservedRateClass, string> = {
   stabil: "#16a34a",
   memburuk: "#f59e0b",
@@ -41,6 +50,107 @@ const RATE_COLORS: Record<ObservedRateClass, string> = {
 };
 
 const SOURCE_LABEL: Record<LikelihoodSource, string> = { tdv: "A - TDV", pci: "B - PCI" };
+
+interface UnitViewProps {
+  r: UnitRiskResult;
+  likelihoodSource: LikelihoodSource;
+}
+
+/** How one unit was scored - body of the table's trace popover. */
+export function UnitTrace({ r, likelihoodSource }: UnitViewProps) {
+  return (
+    <>
+      <div className="flex items-center gap-3 mb-2 text-[11px]">
+        <span className={likelihoodSource === "tdv" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+          L (TDV, A) {r.likelihoodTdv}
+          {likelihoodSource === "tdv" && " ← used"}
+        </span>
+        <span className={likelihoodSource === "pci" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+          L (PCI, B) {r.likelihoodPci ?? "n/a"}
+          {likelihoodSource === "pci" && " ← used"}
+        </span>
+      </div>
+      <div className="mb-2 rounded-sm bg-secondary/50 px-2 py-1.5 text-[11px] text-foreground" title="Consequence is derived only from the FODp index">
+        <span className="font-semibold">FODp {r.fodIndex.toFixed(1)} · state {r.fodState} · C {r.consequence}</span>
+        <span className="text-muted-foreground"> — raveling wRj {r.fodRavelingWeight}; L&amp;T wLj {r.fodCrackWeight}</span>
+      </div>
+      <ul className="space-y-1.5">
+        {r.trace.map((line, i) => (
+          <li key={i} className="text-foreground/90 leading-snug">
+            {line}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-2.5 pt-2.5 border-t border-border">
+        <p className="font-condensed font-semibold uppercase tracking-wide text-[10px] text-muted-foreground mb-1.5">
+          DRU
+        </p>
+        <ul className="space-y-1">
+          {r.dru.trace.map((line, i) => (
+            <li key={i} className="text-foreground/90 leading-snug">
+              {line}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>
+  );
+}
+
+/** A table row's columns as a card - the map sidebar's unit view. */
+export function UnitDetail({ r }: { r: UnitRiskResult }) {
+  const stats: [string, ReactNode][] = [
+    ["PCI", r.pci.toFixed(2)],
+    ["R = L × F × C", `${r.riskScore.toFixed(1)} = ${r.likelihood} × ${r.frequency} × ${r.consequence}`],
+    ["Zone", ZONE_LABELS[r.zone]],
+    ["Station", `${r.stationKm.toFixed(2)} km`],
+    ["Coverage", `${r.coveragePct.toFixed(3)}%`],
+    ["FODp", `${r.fodIndex.toFixed(1)} / ${r.fodState}`],
+    ["DRU", `${r.dru.degree}/${r.dru.relevancy}/${r.dru.urgency}`],
+  ];
+  return (
+    <div className="space-y-4 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className="inline-flex items-center px-2 h-6 rounded text-[11px] font-bold font-mono"
+          style={{ backgroundColor: r.band.color, color: "#fff" }}
+        >
+          Degree {r.band.degree}
+        </span>
+        <span
+          className="inline-flex items-center px-2 h-6 rounded text-[11px] font-bold font-mono"
+          style={{ backgroundColor: r.icao.zoneColor, color: "#fff" }}
+        >
+          ICAO {r.icao.cell}
+        </span>
+        <span className="text-muted-foreground">{r.band.situation}</span>
+      </div>
+      <p className="text-muted-foreground leading-snug">{r.icao.zoneAction}</p>
+      {!r.pciIsReal && <p className="text-muted-foreground italic">Display-filler PCI, not a survey result.</p>}
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+        {stats.map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt>
+            <dd className="font-mono tabular-nums text-foreground">{value}</dd>
+          </div>
+        ))}
+        {/* Full width: the class name alone doesn't say what it measures. */}
+        <div className="col-span-2">
+          <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate</dt>
+          <dd>
+            <span className="font-mono font-medium" style={{ color: RATE_COLORS[r.observedRateClass] }}>
+              {RATE_LABELS[r.observedRateClass]}
+            </span>
+            {r.deltaPci !== undefined && (
+              <span className="font-mono tabular-nums text-muted-foreground"> &middot; dPCI {r.deltaPci.toFixed(1)}</span>
+            )}
+            <p className="text-muted-foreground leading-snug mt-0.5">{RATE_CAPTIONS[r.observedRateClass]}.</p>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
 
 interface ShiftInfo {
   degreeA: number;
@@ -232,6 +342,14 @@ export default function UnitRiskPanel({
         {rows.length} of {results.length} units shown
       </div>
 
+      <p className="text-[11px] text-muted-foreground -mt-2">
+        Rate = PCI drop since the previous survey year: <span style={{ color: RATE_COLORS.stabil }}>Stable</span> &le;{" "}
+        {stabilMax} pts &middot; <span style={{ color: RATE_COLORS.memburuk }}>Worsening</span> {stabilMax}&ndash;{memburukMax} pts
+        &middot; <span style={{ color: RATE_COLORS.memburuk_cepat }}>Worsening Fast</span> &gt; {memburukMax} pts &middot;{" "}
+        <span style={{ color: RATE_COLORS.tidak_terdefinisi }}>Undefined</span> no comparable previous survey. Hover a rate
+        for details.
+      </p>
+
       <div className="rounded-lg border border-border overflow-hidden">
         <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
           <Table>
@@ -330,7 +448,7 @@ export default function UnitRiskPanel({
                       <span
                         className="text-[11px] font-medium whitespace-nowrap"
                         style={{ color: RATE_COLORS[r.observedRateClass] }}
-                        title={r.deltaPci !== undefined ? `dPCI ${r.deltaPci.toFixed(1)}` : undefined}
+                        title={`${RATE_CAPTIONS[r.observedRateClass]}${r.deltaPci !== undefined ? ` (dPCI ${r.deltaPci.toFixed(1)})` : ""}`}
                       >
                         {RATE_LABELS[r.observedRateClass]}
                       </span>
@@ -375,39 +493,7 @@ export default function UnitRiskPanel({
                           <p className="font-condensed font-semibold uppercase tracking-wide text-[11px] text-muted-foreground mb-2">
                             Unit {r.unitNumber} - trace
                           </p>
-                          <div className="flex items-center gap-3 mb-2 text-[11px]">
-                            <span className={likelihoodSource === "tdv" ? "text-foreground font-semibold" : "text-muted-foreground"}>
-                              L (TDV, A) {r.likelihoodTdv}
-                              {likelihoodSource === "tdv" && " ← used"}
-                            </span>
-                            <span className={likelihoodSource === "pci" ? "text-foreground font-semibold" : "text-muted-foreground"}>
-                              L (PCI, B) {r.likelihoodPci ?? "n/a"}
-                              {likelihoodSource === "pci" && " ← used"}
-                            </span>
-                          </div>
-                          <div className="mb-2 rounded-sm bg-secondary/50 px-2 py-1.5 text-[11px] text-foreground" title="Consequence is derived only from the FODp index">
-                            <span className="font-semibold">FODp {r.fodIndex.toFixed(1)} · state {r.fodState} · C {r.consequence}</span>
-                            <span className="text-muted-foreground"> — raveling wRj {r.fodRavelingWeight}; L&amp;T wLj {r.fodCrackWeight}</span>
-                          </div>
-                          <ul className="space-y-1.5">
-                            {r.trace.map((line, i) => (
-                              <li key={i} className="text-foreground/90 leading-snug">
-                                {line}
-                              </li>
-                            ))}
-                          </ul>
-                          <div className="mt-2.5 pt-2.5 border-t border-border">
-                            <p className="font-condensed font-semibold uppercase tracking-wide text-[10px] text-muted-foreground mb-1.5">
-                              DRU
-                            </p>
-                            <ul className="space-y-1">
-                              {r.dru.trace.map((line, i) => (
-                                <li key={i} className="text-foreground/90 leading-snug">
-                                  {line}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                          <UnitTrace r={r} likelihoodSource={likelihoodSource} />
                         </PopoverContent>
                       </Popover>
                     </TableCell>

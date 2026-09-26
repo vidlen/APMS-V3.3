@@ -481,7 +481,7 @@ export default function Home() {
           </aside>
         </div>
       ) : activeTab === "risk" && showPciData ? (
-        <div className="relative flex-1 min-h-0 overflow-y-auto bg-background">
+        <div className="relative flex-1 min-h-0 bg-background">
           <RiskTab
             sections={sections}
             selectedYear={selectedYear}
