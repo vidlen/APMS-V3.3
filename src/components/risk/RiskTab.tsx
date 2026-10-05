@@ -90,7 +90,7 @@ export default function RiskTab({
   }, [branchId, selectedYear, previousYearNum, currentUnitsBySection, previousUnitsBySection]);
 
   // Section 9.1: recompute the WHOLE array on every variant change, never patch
-  // riskScore alone - band/icao/dru all depend on likelihood too.
+  // riskScore alone - band/icao both depend on likelihood too.
   const results: UnitRiskResult[] = useMemo(() => scoreUnits(inputs, likelihoodSource), [inputs, likelihoodSource]);
   // Section 9.2/9.3: both variants, always scored, independent of which is
   // active - drives the comparison panel and the "shifted only" table mode.

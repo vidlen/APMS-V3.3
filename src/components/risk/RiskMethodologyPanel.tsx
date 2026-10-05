@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { BookOpen, ChevronDown } from "lucide-react";
 import type { UnitRiskResult } from "@/lib/risk-unit";
 import type { LikelihoodSource } from "@/config/riskScales";
-import { DRU_PROVENANCE } from "@/lib/dru";
 
 interface RiskMethodologyPanelProps {
   results: UnitRiskResult[];
@@ -55,13 +54,12 @@ export default function RiskMethodologyPanel({ results, likelihoodSource }: Risk
             ceiling. Consequence comes from one FODp index, not the dominant distress&apos;s hazard class: raveling and
             longitudinal/transverse cracking are weighted through Shah et al.&apos;s (2004) equation [9] and Table 8,
             then mapped from FODp state to Fine-Kinney C by this research&apos;s FOD_STATE_CONSEQUENCE bridge. The
-            operational verdict is the ICAO Doc 9859 zone, not the Fine-Kinney degree; DRU Urgency follows that
-            same zone.
+            operational verdict is the ICAO Doc 9859 zone, not the Fine-Kinney degree.
           </p>
 
           <div>
             <p className="text-foreground font-semibold text-[11px] uppercase tracking-wide mb-2">
-              Four limits, stated rather than buried
+              Three limits, stated rather than buried
             </p>
             <ul className="space-y-2 list-disc pl-4">
               <li>
@@ -81,16 +79,7 @@ export default function RiskMethodologyPanel({ results, likelihoodSource }: Risk
                 FOD_STATE_CONSEQUENCE is this research&apos;s own bridge from Shah&apos;s 0-100 index to Fine-Kinney&apos;s C
                 scale; only the index weights, denominator and state boundaries are cited from Shah.
               </li>
-              <li>
-                DRU Relevancy and Urgency are this implementation&apos;s own proposal, not content reproduced from
-                Anderson - see the provenance note below.
-              </li>
             </ul>
-          </div>
-
-          <div className="rounded-md border border-dashed border-border px-3 py-2.5">
-            <p className="text-foreground font-semibold text-[11px] uppercase tracking-wide mb-1">DRU provenance</p>
-            <p>{DRU_PROVENANCE}</p>
           </div>
 
           <div className="rounded-md border border-dashed border-border px-3 py-2.5">

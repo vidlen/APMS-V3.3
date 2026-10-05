@@ -81,18 +81,6 @@ export function UnitTrace({ r, likelihoodSource }: UnitViewProps) {
           </li>
         ))}
       </ul>
-      <div className="mt-2.5 pt-2.5 border-t border-border">
-        <p className="font-condensed font-semibold uppercase tracking-wide text-[10px] text-muted-foreground mb-1.5">
-          DRU
-        </p>
-        <ul className="space-y-1">
-          {r.dru.trace.map((line, i) => (
-            <li key={i} className="text-foreground/90 leading-snug">
-              {line}
-            </li>
-          ))}
-        </ul>
-      </div>
     </>
   );
 }
@@ -106,7 +94,6 @@ export function UnitDetail({ r }: { r: UnitRiskResult }) {
     ["Station", `${r.stationKm.toFixed(2)} km`],
     ["Coverage", `${r.coveragePct.toFixed(3)}%`],
     ["FODp", `${r.fodIndex.toFixed(1)} / ${r.fodState}`],
-    ["DRU", `${r.dru.degree}/${r.dru.relevancy}/${r.dru.urgency}`],
   ];
   return (
     <div className="space-y-4 text-xs">
@@ -157,8 +144,6 @@ interface ShiftInfo {
   degreeB: number;
   zoneA: string;
   zoneB: string;
-  urgencyA: string;
-  urgencyB: string;
   degreeGap: number;
   shifted: boolean;
 }
@@ -186,14 +171,12 @@ export default function UnitRiskPanel({
     for (const a of compareA) {
       const b = bByUnit.get(a.unitNumber);
       if (!b) continue;
-      const shifted = a.band.degree !== b.band.degree || a.icao.zone !== b.icao.zone || a.dru.urgency !== b.dru.urgency;
+      const shifted = a.band.degree !== b.band.degree || a.icao.zone !== b.icao.zone;
       map.set(a.unitNumber, {
         degreeA: a.band.degree,
         degreeB: b.band.degree,
         zoneA: a.icao.zone,
         zoneB: b.icao.zone,
-        urgencyA: String(a.dru.urgency),
-        urgencyB: String(b.dru.urgency),
         degreeGap: Math.abs(a.band.degree - b.band.degree),
         shifted,
       });
@@ -244,7 +227,7 @@ export default function UnitRiskPanel({
     );
   }
 
-  const colSpan = 14 + (showShiftedOnly ? 3 : 0);
+  const colSpan = 13 + (showShiftedOnly ? 2 : 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -305,7 +288,7 @@ export default function UnitRiskPanel({
                 ? "border-primary text-primary bg-primary/10"
                 : "border-border text-foreground hover:bg-secondary"
             }`}
-            title="Only units whose degree, ICAO zone or DRU Urgency differ between variant A and variant B"
+            title="Only units whose degree, or ICAO zone differ between variant A and variant B"
           >
             {showShiftedOnly ? `Shifted only (${shiftedCount})` : "Show shifted only"}
           </button>
@@ -368,14 +351,10 @@ export default function UnitRiskPanel({
                 <TableHead className="px-2">Degree</TableHead>
                 <TableHead className="px-2">ICAO</TableHead>
                 <TableHead className="px-2">Rate</TableHead>
-                <TableHead className="px-2" title="Degree / Relevancy / Urgency (Anderson DRU)">
-                  DRU
-                </TableHead>
                 {showShiftedOnly && (
                   <>
                     <TableHead className="px-2 whitespace-nowrap">Degree A&rarr;B</TableHead>
                     <TableHead className="px-2 whitespace-nowrap">Zone A&rarr;B</TableHead>
-                    <TableHead className="px-2 whitespace-nowrap">Urgency A&rarr;B</TableHead>
                   </>
                 )}
                 <TableHead className="px-2 w-8" aria-label="Trace" />
@@ -453,12 +432,6 @@ export default function UnitRiskPanel({
                         {RATE_LABELS[r.observedRateClass]}
                       </span>
                     </TableCell>
-                    <TableCell
-                      className="px-2 py-1 font-mono text-xs whitespace-nowrap"
-                      title={`Relevancy ${r.dru.relevancy}, Urgency ${r.dru.urgency}, Extent ${r.dru.extentPct.toFixed(1)}% (${r.dru.druCell})`}
-                    >
-                      {r.dru.degree}/{r.dru.relevancy}/{r.dru.urgency}
-                    </TableCell>
                     {showShiftedOnly && shift && (
                       <>
                         <TableCell className="px-2 py-1 font-mono text-xs whitespace-nowrap">
@@ -472,9 +445,6 @@ export default function UnitRiskPanel({
                         </TableCell>
                         <TableCell className="px-2 py-1 text-xs whitespace-nowrap">
                           {shift.zoneA} &rarr; {shift.zoneB}
-                        </TableCell>
-                        <TableCell className="px-2 py-1 font-mono text-xs whitespace-nowrap">
-                          {shift.urgencyA} &rarr; {shift.urgencyB}
                         </TableCell>
                       </>
                     )}

@@ -158,7 +158,7 @@ test('3d. a distress recorded in M contributes to coverage via LINEAR_INFLUENCE_
   // 0.36 m x 1.0 m influence width / 600 m2 x 100 = 0.06%.
   assert.equal(coveragePct(onlyLandT), (0.36 * 1.0 / 600) * 100);
   const result = scoreUnit(baseInput({ distresses: onlyLandT, areaM2: 600 }));
-  assert.equal(result.dru.extentPct, result.coveragePct);
+  assert.equal(result.coveragePct, coveragePct(onlyLandT));
 });
 
 /* =============================================================================
@@ -280,7 +280,6 @@ test('10. every unit across all three reference files scores without throwing', 
       assert.ok(Number.isFinite(r.riskScore));
       assert.ok(r.band);
       assert.ok(r.icao);
-      assert.ok(r.dru);
     }
   }
 });

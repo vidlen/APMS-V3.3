@@ -678,19 +678,9 @@ export const REPAIR_LOG_NO_RECORD_IN_WINDOW: string[] = [
  * See metode-b-r1-spec.md sections 1.1 and 3.
  * ========================================================================== */
 
-/** Severity weight, 1 to 4. Unitless, applies to every distress type. Still
- *  used by DRU (dru.ts) for Degree and Relevancy - do not remove alongside
- *  the extent-level tables below, which DRU never read. */
-export const SEVERITY_LEVEL: Record<'N/A' | 'Low' | 'Medium' | 'High', 1 | 2 | 3 | 4> = {
-  'N/A': 1,
-  Low: 2,
-  Medium: 3,
-  High: 4,
-};
-
 /** Source of Likelihood - the one axis metode-b-r1-spec.md section 3.6 builds
  *  two variants for. Everything downstream of L (F, C, escalation, R, band,
- *  ICAO cell, DRU, observed-rate class) is identical for both - only this one
+ *  ICAO cell, observed-rate class) is identical for both - only this one
  *  read differs. Never fork scoreUnit into two copies over this. */
 export type LikelihoodSource = 'tdv' | 'pci';
 

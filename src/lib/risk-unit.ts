@@ -33,7 +33,6 @@ import {
 import { canonicalise, hazardClassFor, bandFor } from './risk.ts';
 import { assessIcao, type IcaoAssessment } from './icao.ts';
 import { observedRateClass, type ObservedRateClass } from './observed-rate.ts';
-import { druFromUnit, type DruRating, type DruRelevancy, type DruUrgency } from './dru.ts';
 import { fodBreakdown, FOD_STATE_CONSEQUENCE, type FodState } from './fod-index.ts';
 
 export type Zone = 'ujung' | 'tengah';
@@ -91,10 +90,6 @@ export interface UnitRiskInput {
    *  Flagged and shown, never used to drop or reweight the unit. */
   astmConsistent: boolean;
   overrides?: { likelihood?: number; frequency?: number; consequence?: number };
-  /** Manual override for DRU Relevancy/Urgency - both are this implementation's
-   *  proposal, not a citation (dru.ts file header), so a defensible manual
-   *  override path is required alongside the computed default. */
-  druOverrides?: { relevancy?: DruRelevancy; urgency?: DruUrgency };
 }
 
 export interface UnitRiskResult {
@@ -130,7 +125,6 @@ export interface UnitRiskResult {
   observedRateClass: ObservedRateClass;
   pciIsReal: boolean;
   deltaPci?: number;
-  dru: DruRating;
   /** This unit's ASTM condition class read off its own PCI - diagnostic only. */
   astmConditionClass: AstmConditionClass;
   /** How many LIKELIHOOD_VALUES steps heavier the active `likelihood` reads
@@ -261,7 +255,7 @@ function pickDominant(distresses: UnitDistress[], trace: string[]): DominantCand
 
 /** Scores one sample unit end to end: TDV/coverage -> L/F, FODp -> C,
  *  R = L x F x C, then the ICAO crosswalk, the
- *  observed-rate class and the DRU rating. `source` picks which Likelihood
+ *  and the observed-rate class. `source` picks which Likelihood
  *  variant drives R (section 3.6) - defaults to DEFAULT_LIKELIHOOD_SOURCE.
  *  Everything past Likelihood is identical between variants; see the "11" test
  *  that pins this. */
@@ -301,7 +295,6 @@ export function scoreUnit(rawInput: UnitRiskInput, source: LikelihoodSource = DE
 
   const dominant = pickDominant(distresses, trace);
   const dominantDistress = dominant?.type ?? '';
-  const dominantSeverity: UnitDistress['severity'] = dominant?.severity ?? 'N/A';
 
   let frequency = frequencyFromCoverage(coverage, input.role);
   trace.push(`F ${frequency} from coverage ${coverage.toFixed(3)}%, capped at role '${input.role}' ceiling ${ROLE_TO_FREQUENCY[input.role]}`);
@@ -348,8 +341,6 @@ export function scoreUnit(rawInput: UnitRiskInput, source: LikelihoodSource = DE
   );
   const deltaPci = input.previousPci !== undefined ? input.previousPci - input.pci : undefined;
 
-  const dru = druFromUnit(input, hazardClass, dominantSeverity, icao.zone, rate, coverage, input.druOverrides);
-
   const astmConditionClass = astmConditionClassFor(input.pci);
   const likelihoodClassGap = LIKELIHOOD_VALUES.indexOf(likelihood) - LIKELIHOOD_VALUES.indexOf(likelihoodFromUnitPci(input.pci));
 
@@ -378,7 +369,6 @@ export function scoreUnit(rawInput: UnitRiskInput, source: LikelihoodSource = DE
     observedRateClass: rate,
     pciIsReal: input.pciIsReal,
     deltaPci,
-    dru,
     astmConditionClass,
     likelihoodClassGap,
     astmConsistent: input.astmConsistent,

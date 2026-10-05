@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import type { UnitRiskResult } from "@/lib/risk-unit";
 import { RISK_BANDS } from "@/config/riskScales";
 import type { IcaoZoneName } from "@/config/icaoMatrix";
-import type { DruUrgency } from "@/lib/dru";
 
 interface VariantComparisonPanelProps {
   /** Both variants, scored over the SAME unit set regardless of which is active. */
@@ -11,7 +10,6 @@ interface VariantComparisonPanelProps {
 }
 
 const ZONES: IcaoZoneName[] = ["Intolerable", "Tolerable", "Acceptable"];
-const URGENCIES: DruUrgency[] = [4, 3, 2, 1, "R"];
 
 function countBy<T extends string | number>(results: UnitRiskResult[], key: (r: UnitRiskResult) => T): Map<T, number> {
   const counts = new Map<T, number>();
@@ -40,22 +38,18 @@ export default function VariantComparisonPanel({ resultsA, resultsB }: VariantCo
   const degreeB = useMemo(() => countBy(resultsB, (r) => r.band.degree), [resultsB]);
   const zoneA = useMemo(() => countBy(resultsA, (r) => r.icao.zone), [resultsA]);
   const zoneB = useMemo(() => countBy(resultsB, (r) => r.icao.zone), [resultsB]);
-  const urgencyA = useMemo(() => countBy(resultsA, (r) => String(r.dru.urgency)), [resultsA]);
-  const urgencyB = useMemo(() => countBy(resultsB, (r) => String(r.dru.urgency)), [resultsB]);
 
   const shifts = useMemo(() => {
     const bByUnit = new Map(resultsB.map((r) => [r.unitNumber, r]));
     let degree = 0,
-      zone = 0,
-      urgency = 0;
+      zone = 0;
     for (const a of resultsA) {
       const b = bByUnit.get(a.unitNumber);
       if (!b) continue;
       if (a.band.degree !== b.band.degree) degree++;
       if (a.icao.zone !== b.icao.zone) zone++;
-      if (a.dru.urgency !== b.dru.urgency) urgency++;
     }
-    return { degree, zone, urgency };
+    return { degree, zone };
   }, [resultsA, resultsB]);
 
   return (
@@ -64,7 +58,7 @@ export default function VariantComparisonPanel({ resultsA, resultsB }: VariantCo
         <h3 className="panel-label">Variant comparison &mdash; A (TDV) vs. B (PCI), both always scored</h3>
         <p className="text-[11px] text-muted-foreground mt-1">Counts shown as A / B; bold where they differ.</p>
       </div>
-      <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
             Fine-Kinney degree
@@ -79,18 +73,11 @@ export default function VariantComparisonPanel({ resultsA, resultsB }: VariantCo
             <CompareRow key={zone} label={zone} a={zoneA.get(zone) ?? 0} b={zoneB.get(zone) ?? 0} />
           ))}
         </div>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">DRU Urgency</p>
-          {URGENCIES.map((u) => (
-            <CompareRow key={String(u)} label={String(u)} a={urgencyA.get(String(u)) ?? 0} b={urgencyB.get(String(u)) ?? 0} />
-          ))}
-        </div>
       </div>
       <div className="px-4 pb-4 text-[11px] text-muted-foreground">
         <span className="font-mono font-semibold text-foreground">{shifts.degree}</span> unit(s) change degree,{" "}
-        <span className="font-mono font-semibold text-foreground">{shifts.zone}</span> change zone,{" "}
-        <span className="font-mono font-semibold text-foreground">{shifts.urgency}</span> change Urgency between the
-        two variants.
+        <span className="font-mono font-semibold text-foreground">{shifts.zone}</span> change zone between the two
+        variants.
       </div>
     </div>
   );
