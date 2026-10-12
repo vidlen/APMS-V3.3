@@ -10,7 +10,7 @@ import { toUnitRiskInputs } from "@/lib/risk-unit-adapter";
 import { scoreUnits, type UnitRiskResult } from "@/lib/risk-unit";
 import { downloadUnitRiskResultsCsv } from "@/lib/risk-unit-export";
 import { ICAO_GRID_PROVENANCE, ICAO_ZONES, type IcaoZoneName } from "@/config/icaoMatrix";
-import { DEFAULT_LIKELIHOOD_SOURCE, RISK_BANDS, type LikelihoodSource } from "@/config/riskScales";
+import { DEFAULT_LIKELIHOOD_SOURCE, RISK_BANDS } from "@/config/riskScales";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import IcaoMatrixPanel from "./IcaoMatrixPanel";
 import DistressCoveragePanel from "./DistressCoveragePanel";
@@ -73,9 +73,9 @@ export default function RiskTab({
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
   const [colorBy, setColorBy] = useState<ColorBy>("degree");
-  // Section 9.1: runtime state, not persisted to localStorage - every session
-  // starts on DEFAULT_LIKELIHOOD_SOURCE.
-  const [likelihoodSource, setLikelihoodSource] = useState<LikelihoodSource>(DEFAULT_LIKELIHOOD_SOURCE);
+  // Only variant B is selectable now; variant A survives solely in the
+  // comparison panel (resultsA below).
+  const likelihoodSource = DEFAULT_LIKELIHOOD_SOURCE;
 
   const previousYearNum = Number(selectedYear) - 1;
   const previousYear = String(previousYearNum);
@@ -96,13 +96,6 @@ export default function RiskTab({
   // active - drives the comparison panel and the "shifted only" table mode.
   const resultsA = useMemo(() => scoreUnits(inputs, "tdv"), [inputs]);
   const resultsB = useMemo(() => scoreUnits(inputs, "pci"), [inputs]);
-
-  const handleSelectSource = (source: LikelihoodSource) => {
-    setLikelihoodSource(source);
-    // Section 9.4 item 1: a cell selected under the old variant may not exist
-    // under the new one - clear it rather than leave a filter with no rows.
-    setSelectedCell(null);
-  };
 
   // "Covered" here means the union of branches with sample-unit distress
   // evidence or repair-log evidence - the two sources that still have any
@@ -174,18 +167,6 @@ export default function RiskTab({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Likelihood</span>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            size="sm"
-            value={likelihoodSource}
-            onValueChange={(v) => v && handleSelectSource(v as LikelihoodSource)}
-          >
-            <ToggleGroupItem value="pci" title="Likelihood from the unit's own PCI, read on the ASTM condition class. Uses the full-precision survey figure. Default B-R3 variant.">
-              B &middot; PCI unit
-            </ToggleGroupItem>
-          </ToggleGroup>
           <button
             onClick={() => downloadUnitRiskResultsCsv(results, { branchId, surveyYear: Number(selectedYear), likelihoodSource })}
             className="h-8 inline-flex items-center gap-1.5 px-3 rounded-md text-xs font-medium border border-border text-foreground hover:bg-secondary transition-colors"
