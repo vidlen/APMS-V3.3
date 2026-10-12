@@ -185,9 +185,6 @@ export default function RiskTab({
             <ToggleGroupItem value="pci" title="Likelihood from the unit's own PCI, read on the ASTM condition class. Uses the full-precision survey figure. Default B-R3 variant.">
               B &middot; PCI unit
             </ToggleGroupItem>
-            <ToggleGroupItem value="tdv" title="Likelihood from the sum of deduct value across every distress on the unit. Preserves the signal from stacked distress types. Shown for comparison against variant B.">
-              A &middot; deduct ASTM (comparison)
-            </ToggleGroupItem>
           </ToggleGroup>
           <button
             onClick={() => downloadUnitRiskResultsCsv(results, { branchId, surveyYear: Number(selectedYear), likelihoodSource })}
