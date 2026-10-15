@@ -1,4 +1,4 @@
-import type { RunwayId, SkidBasis } from "@/types/skid";
+import type { RunwayId, SkidBasis, SkidSurvey } from "@/types/skid";
 
 export interface RunwayMeta {
   id: RunwayId;
@@ -27,3 +27,15 @@ export interface SelectedUnit {
 export const BASIS_LABEL: Record<SkidBasis, string> = { "152m": "152 m (FAA)", "10m": "10 m" };
 
 export const muText = (v: number | null | undefined): string => (v === null || v === undefined ? "—" : v.toFixed(2));
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// survey.start_wib / end_wib are "YYYY-MM-DD HH:mm" strings already in WIB.
+/** "6 Jun 2026" */
+export function surveyDate(s: SkidSurvey): string {
+  const [y, m, d] = s.start_wib.slice(0, 10).split("-").map(Number);
+  return `${d} ${MONTHS[m - 1]} ${y}`;
+}
+
+/** "6 Jun 2026 · 00:21–02:37 WIB" */
+export const surveyWindow = (s: SkidSurvey): string => `${surveyDate(s)} · ${s.start_wib.slice(11)}–${s.end_wib.slice(11)} WIB`;
