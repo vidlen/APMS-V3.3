@@ -1,0 +1,34 @@
+# build-skid-1m.mjs --check, dijalankan 15 Okt 2026 pada 16 CSV asli (Runway_06-24.zip, Runway_07L-25R.zip)
+# Berkas public/data/skid-*-2026-1m.json di paket ini adalah hasil konverter yang sama (tanpa --check).
+
+CSV files found: 16
+
+== RWY 06-24
+unit-lane pairs checked: 2400  n OK: 2400  mu_10m OK: 2400  mu_152m OK: 2400
+largest difference vs per-unit file: mu_10m 0.000050, mu_152m 0.000050
+edge case (accepted): unit 114 L6.0: reading at DISTANCE 1494 on the upper window edge counted as inside
+edge case (accepted): unit 114 R6.0: reading at DISTANCE 1494 on the upper window edge counted as inside
+lane   rows  mean_mu  mean_kmh  outside_65+/-5  held_rows  gps_rows  s0_gps    lateral_gps (nominal)
+L6.0   2400  0.8504   66.47                  0        497         0  -         -
+L4.5   2400  0.7277   65.99                  0        482      2400  2699.69   -6.29 (-4.5)
+L3.0   2400  0.6185   65.39                  0        453      2400  2704.4    -3.57 (-3)
+L1.5   2400  0.7058   65.13                  0        456      2400  2705.62   -2.48 (-1.5)
+R1.5   2400  0.72     66.28                  0        453      2400  2706.21   1.66 (1.5)
+R3.0   2400  0.6544   66.47                  0        460      2400  2703.56   3.76 (3)
+R4.5   2400  0.7216   66.83                  0        472      2400  2701.71   4.37 (4.5)
+R6.0   2400  0.7997   66.68                  0        507         0  -         -
+
+== RWY 07L-25R
+unit-lane pairs checked: 2880  n OK: 2880  mu_10m OK: 2880  mu_152m OK: 2880
+largest difference vs per-unit file: mu_10m 0.000050, mu_152m 0.000050
+lane   rows  mean_mu  mean_kmh  outside_65+/-5  held_rows  gps_rows  s0_gps    lateral_gps (nominal)
+L6.0   3000  0.7813   64.57                  0        581      3000  3314.41   -3.28 (-6)
+L4.5   3000  0.7422   66.25                 47        571      3000  3304.58   -2.36 (-4.5)
+L3.0   3000  0.7441   65.87                 56        572      3000  3303.07   -1.56 (-3)
+L1.5   3000  0.7594   64.78                  0        547      3000  3306.44   -0.39 (-1.5)
+R1.5   3000  0.7919   67.06                 32        640      3000  3307.56   3.24 (1.5)
+R3.0   3000  0.7929   65.89                 12        626      3000  3308.31   4.62 (3)
+R4.5   3000  0.7933   65.53                  0        623      3000  3304.23   7.25 (4.5)
+R6.0   3000  0.8334   66.35                 63        645      3000  3312.04   7.18 (6)
+
+RESULT: OK (check only, nothing written)

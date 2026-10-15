@@ -26,3 +26,6 @@ npm-debug.log*
 
 # Local design-review tooling state
 .impeccable/
+
+# Raw Moventor skid-resistance CSVs (only needed to re-run npm run skid:1m)
+data-raw/
