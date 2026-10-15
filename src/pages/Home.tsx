@@ -12,6 +12,7 @@ import SectionsTable from "@/components/SectionsTable";
 import PciScalePanel from "@/components/PciScalePanel";
 import AdminHeaderControl from "@/components/admin/AdminHeaderControl";
 import RiskTab from "@/components/risk/RiskTab";
+import SkidTab from "@/components/skid/SkidTab";
 import { usePavementData } from "@/hooks/usePavementData";
 import { usePciScalePanel } from "@/hooks/usePciScalePanel";
 import { countByCondition, pciCategories, parsePCIValue, type SectionData } from "@/lib/pci-utils";
@@ -28,7 +29,7 @@ import { aggregateRepairLog } from "@/lib/repair-log";
 const NARROW_BREAKPOINT = 800;
 const MIN_LOADING_SCREEN_MS = 2000;
 
-type WorkspaceTab = "pci" | "risk";
+type WorkspaceTab = "pci" | "risk" | "skid";
 
 const WORKSPACE_TABS: { id: WorkspaceTab; label: string; shortLabel: string; placeholderCaption?: string }[] = [
   { id: "pci", label: "Pavement Condition Index (PCI)", shortLabel: "PCI" },
@@ -38,6 +39,7 @@ const WORKSPACE_TABS: { id: WorkspaceTab; label: string; shortLabel: string; pla
     shortLabel: "Risk",
     placeholderCaption: "No PCI survey data loaded for this year yet",
   },
+  { id: "skid", label: "Skid Resistance", shortLabel: "Skid" },
 ];
 
 function isNarrowViewport() {
@@ -489,6 +491,11 @@ export default function Home() {
             repairLogByBranch={repairLogAggregate.byBranch}
             repairLogStats={repairLogAggregate.stats}
           />
+        </div>
+      ) : activeTab === "skid" ? (
+        // Independent of the survey-year selector: skid data is a fixed June 2026 survey.
+        <div className="relative flex-1 min-h-0 bg-background">
+          <SkidTab />
         </div>
       ) : (
         <div className="relative flex-1 flex items-center justify-center min-h-0 bg-background">
