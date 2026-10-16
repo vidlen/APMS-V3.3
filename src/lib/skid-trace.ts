@@ -276,3 +276,15 @@ export function meterRuns(values: readonly (number | null)[]): MeterRun[] {
   }
   return out;
 }
+
+// ---------------------------------------------------------------- tooltip: bacaan yang digambar di sebuah sel
+
+/** Index of the 1 m reading drawn in the profile / heatmap cell at x, or null outside the recording.
+ *  profileRows puts reading i in the cell [floor(x), floor(x)+1) when cells are 1 m wide (and the cell is
+ *  the lowest of its readings when wider), so tooltips must use the same bucketing: plain "nearest
+ *  reading" can differ by one reading from the one whose value the cell shows. `step` is the cell width in m. */
+export function readingAtX(rt: SkidRunwayTrace, lane: SkidLaneTrace, x: number, step: number): number | null {
+  const c = rt.unit_bounds.last_end_m - lane.s0_m + lane.d_first; // x of reading i is c + i
+  const i = step === 1 ? Math.ceil(Math.floor(x) - c - 1e-9) : Math.round(x - c);
+  return i >= 0 && i < lane.mu.length ? i : null;
+}

@@ -1,6 +1,7 @@
 import { LANE_ORDER } from "@/config/skid";
 import { useSkidTrace } from "@/hooks/useSkidTrace";
 import type { RunwayId, SkidRunwayData } from "@/types/skid";
+import Mu from "./Mu";
 import { RUNWAYS, fmtInt, muText, wibClock } from "./skid-ui";
 
 // Every measurement run that went into the app: 8 lanes × 2 runways.
@@ -31,7 +32,7 @@ export default function SkidRuns({ data }: { data: Record<RunwayId, SkidRunwayDa
                 <th className="text-right font-medium px-2">Offset (m)</th>
                 <th className="text-right font-medium px-2">Start (WIB)</th>
                 <th className="text-right font-medium px-2">Recorded (m)</th>
-                <th className="text-right font-medium px-2">Mean μ</th>
+                <th className="text-right font-medium px-2">Mean <Mu /></th>
                 <th className="text-right font-medium px-2">Mean speed (km/h)</th>
                 <th className="text-right font-medium px-2">Outside 65 ± 5 km/h (m)</th>
                 <th className="text-right font-medium px-2">Repeated rows (%)</th>

@@ -1,5 +1,6 @@
 import { SKID_CLASS_META, type SkidClass } from "@/config/skid";
 import type { SkidBasis } from "@/types/skid";
+import Mu from "./Mu";
 
 const CLASSES: SkidClass[] = ["belowMinimum", "belowMaintenance", "aboveMaintenance", "newDesign", "noData"];
 
@@ -16,7 +17,9 @@ function title(basis: SkidBasis, res: "unit" | "meter"): string {
 export default function SkidLegend({ basis, res = "unit" }: { basis: SkidBasis; res?: "unit" | "meter" }) {
   return (
     <div className="px-4 py-2.5 bg-card border-t border-border">
-      <h3 className="panel-label mb-1.5">{title(basis, res)}</h3>
+      <h3 className="panel-label mb-1.5">
+        {title(basis, res).split("μ").flatMap((part, i) => (i === 0 ? [part] : [<Mu key={i} />, part]))}
+      </h3>
       <ul className="flex flex-wrap gap-x-4 gap-y-1">
         {CLASSES.map((c) => (
           <li key={c} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">

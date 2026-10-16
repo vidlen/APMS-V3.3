@@ -7,6 +7,7 @@ import { indicesInUnit, unitXRange, xOf } from "@/lib/skid-trace";
 import { usePavementData } from "@/hooks/usePavementData";
 import { useSkidTrace } from "@/hooks/useSkidTrace";
 import type { LaneCode, RunwayId, SkidBasis, SkidRunwayData, SkidRunwayTrace } from "@/types/skid";
+import Mu from "./Mu";
 import { BASIS_LABEL, RUNWAY_BY_ID, fmtInt, muText, surveyDate, type SelectedUnit } from "./skid-ui";
 
 interface SkidUnitPanelProps {
@@ -188,8 +189,12 @@ export default function SkidUnitPanel({ data, selected, basis, onClose, onShowIn
         <thead>
           <tr className="text-[10px] uppercase tracking-[.07em] text-muted-foreground border-b border-border">
             <th className="text-left font-medium py-1.5">Lane</th>
-            <th className="text-right font-medium">μ 10 m</th>
-            <th className="text-right font-medium">μ 152 m</th>
+            <th className="text-right font-medium">
+              <Mu /> 10 m
+            </th>
+            <th className="text-right font-medium">
+              <Mu /> 152 m
+            </th>
             <th className="text-right font-medium">Readings (n)</th>
           </tr>
         </thead>

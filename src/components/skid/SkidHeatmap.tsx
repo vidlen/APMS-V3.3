@@ -4,7 +4,7 @@ import { classifySkid, LANE_ORDER, SKID_CLASS_META } from "@/config/skid";
 import { useElementWidth } from "@/hooks/useElementWidth";
 import type { SkidTraceState } from "@/hooks/useSkidTrace";
 import { governingFor, laneMu } from "@/lib/skid";
-import { indexAtX, laneKey, profileRows, stationOf, unitAtStation, unitXRange, type ProfileRow } from "@/lib/skid-trace";
+import { laneKey, profileRows, readingAtX, stationOf, unitAtStation, unitXRange, type ProfileRow } from "@/lib/skid-trace";
 import type { SkidBasis, SkidRunwayData, SkidRunwayTrace } from "@/types/skid";
 import { BASIS_LABEL, fmtInt, muText, type HeatRes, type RunwayMeta, type XDomain } from "./skid-ui";
 
@@ -224,7 +224,8 @@ function MeterHeatmap({ rt, ma, runway, domain, selectedUnit, onSelectUnit }: Me
   };
 
   const describe = (x: number, lane: SkidRunwayTrace["lanes"][number]): string => {
-    const i = indexAtX(rt, lane, x);
+    // Same bucketing as the cells (and the profile tooltip), so both show the same reading at the same x.
+    const i = readingAtX(rt, lane, x, rows.length > 1 ? rows[1].x - rows[0].x : 1);
     if (i === null) return `${lane.lane} · x ${fmtInt(x)} m · not recorded`;
     const unit = unitAtStation(rt, stationOf(lane, i));
     const avg = ma.get(lane.lane)?.[i] ?? null;

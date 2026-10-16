@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { LANE_ORDER } from "../config/skid.ts";
 import { SkidTraceSchema } from "./skid-schema.ts";
-import { movingAverage, xOf } from "./skid-trace.ts";
+import { movingAverage, profileRows, readingAtX, xOf } from "./skid-trace.ts";
 import { exportName, profileCsv } from "./skid-export.ts";
 import type { LaneCode } from "../types/skid.ts";
 
@@ -34,4 +34,27 @@ test("N. ekspor CSV profil: jumlah baris, kolom, dan nilai sama dengan data per 
   assert.equal(Number(rows[0][8]), l30.speed_kmh[i]);
 
   assert.equal(exportName("06-24", "L3.0", [1000.2, 1499.6], "csv"), "skid-06-24-L3.0-x1000-1500.csv");
+});
+
+test("O. bacaan di sel profil/heatmap = bacaan yang nilainya ditampilkan sel itu (tooltip sama dengan warna sel)", () => {
+  // Bug yang ditemukan di browser: "bacaan terdekat" bisa beda satu bacaan dari yang digambar di sel 1 m.
+  for (const name of ["skid-06-24-2026-1m.json", "skid-07L-25R-2026-1m.json"]) {
+    const t = SkidTraceSchema.parse(read(name));
+    const tma = new Map<LaneCode, (number | null)[]>(t.lanes.map((l) => [l.lane, movingAverage(l.mu).mean]));
+    const lane = t.lanes.find((l) => l.lane === "L3.0")!;
+    const rows = profileRows(t, [lane], [400, 900], 1500, tma);
+    let checked = 0;
+    for (const row of rows) {
+      const lo = row["lo_L3_0"];
+      if (lo === null) continue;
+      for (const dx of [0.05, 0.5, 0.95]) {
+        const i = readingAtX(t, lane, row.x + dx, 1);
+        assert.notEqual(i, null);
+        assert.equal(lane.mu[i as number], lo, `${name} x=${row.x + dx}`);
+        checked++;
+      }
+    }
+    assert.ok(checked > 1400, `${name}: ${checked} titik dicek`);
+    assert.equal(readingAtX(t, lane, 5, 1), null, "di luar rekaman");
+  }
 });

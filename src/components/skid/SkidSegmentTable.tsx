@@ -3,6 +3,7 @@ import { Check, Copy } from "lucide-react";
 import { classifySkid, SKID_CLASS_META } from "@/config/skid";
 import { stationOf, unitAtStation, xOf, type Faa320Result, type SkidSegment } from "@/lib/skid-trace";
 import type { SkidLaneTrace, SkidRunwayTrace } from "@/types/skid";
+import Mu from "./Mu";
 import { CLASS_SHORT, FAA_STATUS, muText, type RunwayMeta } from "./skid-ui";
 
 interface Line {
@@ -121,7 +122,9 @@ export default function SkidSegmentTable({ rt, lane, runway, segments, thirds, f
               <th className="text-right font-medium px-2">x (m)</th>
               <th className="text-right font-medium px-2">Units</th>
               <th className="text-right font-medium px-2">n</th>
-              <th className="text-right font-medium px-2">μ avg</th>
+              <th className="text-right font-medium px-2">
+                <Mu /> avg
+              </th>
               <th className="text-right font-medium px-2">Speed avg</th>
               <th className="text-left font-medium px-2">Class</th>
               <th className="text-left font-medium px-2">FAA 3-20</th>

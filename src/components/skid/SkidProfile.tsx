@@ -32,7 +32,7 @@ const SYNC_ONE = "skid-profile-one";
 const SYNC_ALL = "skid-profile-all";
 const MAX_ROWS = 1500;
 const LABEL_W = 72; // lane label column of the small multiples
-const MINI_PLOT = 92; // plot height of each small multiple in All lanes
+const MINI_PLOT = 104; // plot height of each small multiple in All lanes (0.1 of μ = 10 px, room for the top chart's FAA labels)
 
 const TRACK_HINT = "FAA surveys 3 m and 6 m right of the centre line in the landing direction (AC 150/5320-12C par. 3-15.b).";
 

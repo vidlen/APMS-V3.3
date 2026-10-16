@@ -2,8 +2,8 @@ import { useState } from "react";
 import { CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { FAA_LINES, LANE_STYLE } from "@/config/skid";
 import {
-  indexAtX,
   laneKey,
+  readingAtX,
   stationOf,
   unitAtStation,
   unitXRange,
@@ -51,9 +51,11 @@ interface TipProps {
   payload?: { payload: ProfileRow }[];
   rt: SkidRunwayTrace;
   lanes: SkidLaneTrace[];
+  /** Row spacing in m (1 when zoomed in); decides which reading a row stands for. */
+  step: number;
 }
 
-function ProfileTip({ active, payload, rt, lanes }: TipProps) {
+function ProfileTip({ active, payload, rt, lanes, step }: TipProps) {
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   const box = "rounded border border-neutral-300 bg-white px-2 py-1 text-[11px] text-neutral-800 shadow-md whitespace-nowrap";
@@ -82,7 +84,7 @@ function ProfileTip({ active, payload, rt, lanes }: TipProps) {
 
   const lane = lanes[0];
   const k = laneKey(lane.lane);
-  const i = indexAtX(rt, lane, row.x);
+  const i = readingAtX(rt, lane, row.x, step);
   const lo = row[`lo_${k}`];
   const hi = row[`hi_${k}`];
   const ma = row[`ma_${k}`];
@@ -291,10 +293,10 @@ export default function SkidProfileChart({
             stroke="none"
             ifOverflow="hidden"
             label={
-              // Skip the label when the hatched band is too narrow to hold it, and on the small multiples.
-              mini || ((x2 - x1) / (domain[1] - domain[0])) * (width - Y_AXIS_WIDTH - margin.left - margin.right) < 80
+              // Skip the label when the hatched band is too narrow to hold it (about 54 px at this size), and on the small multiples.
+              mini || ((x2 - x1) / (domain[1] - domain[0])) * (width - Y_AXIS_WIDTH - margin.left - margin.right) < 54
                 ? undefined
-                : { value: "Not recorded", position: "insideTop", fill: "#77766E", fontSize: 10 }
+                : { value: "Not recorded", position: "insideTop", fill: "#77766E", fontSize: 9 }
             }
           />
         ) : null,
@@ -320,7 +322,8 @@ export default function SkidProfileChart({
           stroke={l.color}
           strokeDasharray={l.dash || undefined}
           strokeWidth={1.25}
-          label={compact || !showFaaLabels ? undefined : { value: l.label, position: "right", fill: l.color, fontSize: 9 }}
+          // The small multiples are too short for three full names (0.50 and 0.60 sit ~9 px apart): numbers only there.
+          label={compact || !showFaaLabels ? undefined : { value: mini ? l.value.toFixed(2) : l.label, position: "right", fill: l.color, fontSize: mini ? 8 : 9 }}
         />
       ))}
 
@@ -401,7 +404,7 @@ export default function SkidProfileChart({
       {drag && drag.b !== null && <ReferenceArea x1={drag.a} x2={drag.b} fill={INK} fillOpacity={0.14} stroke={INK} strokeOpacity={0.4} ifOverflow="hidden" />}
 
       <Tooltip
-        content={<ProfileTip rt={rt} lanes={lanes} />}
+        content={<ProfileTip rt={rt} lanes={lanes} step={rows.length > 1 ? rows[1].x - rows[0].x : 1} />}
         isAnimationActive={false}
         cursor={{ stroke: INK, strokeWidth: 1, strokeDasharray: "3 3" }}
       />
