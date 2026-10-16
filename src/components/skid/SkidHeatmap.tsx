@@ -3,6 +3,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { classifySkid, LANE_ORDER, SKID_CLASS_META } from "@/config/skid";
 import { useElementWidth } from "@/hooks/useElementWidth";
 import type { SkidTraceState } from "@/hooks/useSkidTrace";
+import { setHover } from "./hover-store";
 import { governingFor, laneMu } from "@/lib/skid";
 import { laneKey, profileRows, readingAtX, stationOf, unitAtStation, unitXRange, type ProfileRow } from "@/lib/skid-trace";
 import type { SkidBasis, SkidRunwayData, SkidRunwayTrace } from "@/types/skid";
@@ -249,8 +250,12 @@ function MeterHeatmap({ rt, ma, runway, domain, selectedUnit, onSelectUnit }: Me
             onMouseMove={(e) => {
               const { x, lane } = at(e);
               setTip({ x: e.clientX, y: e.clientY, text: describe(x, lane) });
+              setHover({ runway: rt.runway, station: rt.unit_bounds.last_end_m - x, offset: lane.offset_m }); // marker on the map
             }}
-            onMouseLeave={() => setTip(null)}
+            onMouseLeave={() => {
+              setTip(null);
+              setHover(null);
+            }}
             onClick={(e) => {
               const unit = unitAtStation(rt, rt.unit_bounds.last_end_m - at(e).x);
               if (unit !== null) onSelectUnit(unit);

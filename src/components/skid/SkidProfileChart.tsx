@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { FAA_LINES, LANE_STYLE } from "@/config/skid";
 import {
+  feetMarks,
   laneKey,
   readingAtX,
   stationOf,
@@ -12,6 +13,7 @@ import {
   type SkidSegment,
 } from "@/lib/skid-trace";
 import type { SkidLaneTrace, SkidRunwayTrace } from "@/types/skid";
+import { setHover } from "./hover-store";
 import { Y_AXIS_WIDTH, fmtInt, isCompactPlot, profileMargin, type Overlays, type RunwayMeta } from "./skid-ui";
 
 // The profile reads like the vehicle printout, so it sits on a light "paper"
@@ -215,10 +217,15 @@ export default function SkidProfileChart({
       }}
       onMouseMove={(s) => {
         const x = activeX(s);
+        // The map shows a marker where the pointer is on the runway.
+        if (x !== null) setHover({ runway: rt.runway, station: rt.unit_bounds.last_end_m - x, offset: lane.offset_m });
         if (drag && x !== null) setDrag({ a: drag.a, b: x });
       }}
       onMouseUp={finishDrag}
-      onMouseLeave={() => setDrag(null)}
+      onMouseLeave={() => {
+        setDrag(null);
+        setHover(null);
+      }}
     >
       <defs>
         <pattern id="skid-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -326,6 +333,23 @@ export default function SkidProfileChart({
           label={compact || !showFaaLabels ? undefined : { value: mini ? l.value.toFixed(2) : l.label, position: "right", fill: l.color, fontSize: mini ? 8 : 9 }}
         />
       ))}
+
+      {/* Zoomed in (600 m or less): a tick every 100 ft of DISTANCE from the start of recording, a label every 500 ft, as on the printout. */}
+      {!mini &&
+        domain[1] - domain[0] <= 600 &&
+        feetMarks(rt, lane, domain).map((m) => (
+          <ReferenceLine
+            key={`ft-${m.feet}`}
+            ifOverflow="hidden"
+            segment={[
+              { x: m.x, y: 0 },
+              { x: m.x, y: m.feet % 500 === 0 ? 0.06 : 0.035 },
+            ]}
+            stroke="#77766E"
+            strokeWidth={1}
+            label={m.feet % 500 === 0 ? { value: `${fmtInt(m.feet)} ft`, position: "top", fill: "#77766E", fontSize: 8 } : undefined}
+          />
+        ))}
 
       {overlays.raw &&
         lanes.map((l) => (

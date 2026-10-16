@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Download } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Download, Printer } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FAA_LINES, FAA_TRACKS, LANE_ORDER, LANE_STYLE, SKID_SPEED } from "@/config/skid";
 import { useElementWidth } from "@/hooks/useElementWidth";
@@ -12,16 +12,15 @@ import SkidProfileChart from "./SkidProfileChart";
 import SkidSpeedStrip from "./SkidSpeedStrip";
 import SkidSegmentTable from "./SkidSegmentTable";
 import SkidSegmentMatrix from "./SkidSegmentMatrix";
+import SkidPrint from "./SkidPrint";
 import {
   OVERLAY_LABELS,
   PROFILE_MARGIN,
   Y_AXIS_WIDTH,
-  fmtInt,
-  laneDescription,
+  laneHeaderLines,
   muText,
   profileMargin,
   surveyDate,
-  wibStamp,
   type Overlays,
   type ProfileView,
   type RunwayMeta,
@@ -77,6 +76,8 @@ export default function SkidProfile({
 }: SkidProfileProps) {
   const { trace: rt, ma, loading, error } = traceState;
   const [plotRef, plotWidth] = useElementWidth<HTMLDivElement>();
+  const [printing, setPrinting] = useState(false);
+  const stopPrinting = useCallback(() => setPrinting(false), []);
 
   // Phones get One lane only.
   const view: ProfileView = narrow ? "one" : viewProp;
@@ -129,10 +130,7 @@ export default function SkidProfile({
   const headerLines: string[] =
     rt && lane
       ? view === "one"
-        ? [
-            `${runway.label} · Lane ${lane.lane} (${laneDescription(lane.lane)}) · Test direction ${rt.survey.direction} · ${wibStamp(lane.record_start_utc)}`,
-            `${rt.survey.speed_kmh} km/h · ${wetting} · ${fmtInt(lane.length_m)} m recorded · run mean μ ${muText(lane.stats.mean_mu)} · mean speed ${lane.stats.mean_speed_kmh?.toFixed(1) ?? "—"} km/h`,
-          ]
+        ? laneHeaderLines(rt, runway, lane)
         : [
             `${runway.label} · ${view === "all" ? "All lanes" : `Compare ${shown.map((l) => l.lane).join(", ")}`} · Test direction ${rt.survey.direction} · ${surveyDate(rt.survey)} (WIB)`,
             `${rt.survey.speed_kmh} km/h · ${wetting} · ${overlays.avg ? "lines are the 152 m moving average of each lane" : "raw 1 m readings"}`,
@@ -298,6 +296,14 @@ export default function SkidProfile({
           >
             <Download size={12} /> Download SVG
           </button>
+          <button
+            onClick={() => setPrinting(true)}
+            disabled={!rt || !ma}
+            className={`${btn} inline-flex items-center gap-1.5`}
+            title="Print one A4 landscape page per lane of this runway (profile, speed, 500 ft and third averages)"
+          >
+            <Printer size={12} /> Print (1 page per lane)
+          </button>
         </div>
       </div>
 
@@ -406,6 +412,7 @@ export default function SkidProfile({
         ) : (
           <SkidSegmentMatrix rt={rt} lanes={shown} onZoomTo={(d) => onXDomain(clamp(d))} />
         ))}
+      {printing && <SkidPrint runway={runway} traceState={traceState} onDone={stopPrinting} />}
     </div>
   );
 }

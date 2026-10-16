@@ -8,18 +8,20 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import LineString from "ol/geom/LineString";
+import Point from "ol/geom/Point";
 import { fromLonLat } from "ol/proj";
 import { asArray } from "ol/color";
 import { createEmpty, extend, type Extent } from "ol/extent";
-import { Style, Fill, Stroke } from "ol/style";
+import { Style, Fill, Stroke, Circle as CircleStyle } from "ol/style";
 import { Zoom } from "ol/control";
 import type { FeatureLike } from "ol/Feature";
 import { classifySkid, SKID_CLASS_META } from "@/config/skid";
 import { governingFor, laneMu, unitStationRange } from "@/lib/skid";
-import { laneLine, makeStationProjector } from "@/lib/skid-geo";
+import { laneLine, makeStationProjector, type StationProjector } from "@/lib/skid-geo";
 import { meterRuns, stationOf, unitAtStation } from "@/lib/skid-trace";
 import type { RunwayId, SkidBasis, SkidRunwayTrace, SkidUnit } from "@/types/skid";
 import type { SkidRunwayBundle } from "@/hooks/useSkidData";
+import { subscribeHover } from "./hover-store";
 import { BASIS_LABEL, RUNWAYS, RUNWAY_BY_ID, fmtInt, muText, type MapLanes, type SelectedUnit } from "./skid-ui";
 import "ol/ol.css";
 
@@ -118,6 +120,24 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, tr
     laneSourceRef.current = laneSource;
     meterSourceRef.current = meterSource;
 
+    // Marker that follows the pointer over the profile / per-metre heatmap (see hover-store.ts).
+    const marker = new Feature({ geometry: new Point([0, 0]) });
+    const markerLayer = new VectorLayer({
+      source: new VectorSource({ features: [marker] }),
+      visible: false,
+      zIndex: 100,
+      style: new Style({ image: new CircleStyle({ radius: 7, fill: new Fill({ color: SELECTED_COLOR }), stroke: new Stroke({ color: "#111111", width: 2 }) }) }),
+    });
+    const projectors = Object.fromEntries(RUNWAYS.map((r) => [r.id, makeStationProjector(bundles[r.id].data.units)])) as Record<RunwayId, StationProjector>;
+    const unsubscribeHover = subscribeHover((p) => {
+      if (!p) {
+        markerLayer.setVisible(false);
+        return;
+      }
+      (marker.getGeometry() as Point).setCoordinates(projectors[p.runway](p.station, p.offset));
+      markerLayer.setVisible(true);
+    });
+
     const all = createEmpty();
     for (const rw of RUNWAYS) {
       const features = new GeoJSON().readFeatures(bundles[rw.id].units, GEOJSON_OPTS);
@@ -146,6 +166,7 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, tr
         unitLayer,
         laneLayer,
         meterLayer,
+        markerLayer,
       ],
       view: new View({ center: fromLonLat([106.66, -6.12]), zoom: 14, maxZoom: 19, minZoom: 11 }),
       controls: [new Zoom()],
@@ -204,6 +225,7 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, tr
     });
 
     return () => {
+      unsubscribeHover();
       map.setTarget(undefined);
       tooltipEl.remove();
     };

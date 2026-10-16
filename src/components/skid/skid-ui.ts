@@ -1,7 +1,7 @@
 import { CircleMinus, Eye, OctagonAlert, TriangleAlert, type LucideIcon } from "lucide-react";
 import { type SkidClass } from "@/config/skid";
 import type { Faa320Status } from "@/lib/skid-trace";
-import type { LaneCode, RunwayId, SkidBasis, SkidSurvey } from "@/types/skid";
+import type { LaneCode, RunwayId, SkidBasis, SkidLaneTrace, SkidRunwayTrace, SkidSurvey } from "@/types/skid";
 
 export interface RunwayMeta {
   id: RunwayId;
@@ -80,6 +80,15 @@ export function wibClock(utcIso: string): string {
 
 /** "L3.0" -> "3.0 m left of CL" (left/right as seen in the test direction). */
 export const laneDescription = (code: LaneCode): string => `${code.slice(1)} m ${code[0] === "L" ? "left" : "right"} of CL`;
+
+/** The two header lines of a one-lane plot (on screen, in the SVG export and on the printed page). */
+export function laneHeaderLines(rt: SkidRunwayTrace, runway: RunwayMeta, lane: SkidLaneTrace): [string, string] {
+  const wetting = rt.survey.wetting === "On" ? "self-wetting (1 mm)" : `wetting ${rt.survey.wetting}`;
+  return [
+    `${runway.label} · Lane ${lane.lane} (${laneDescription(lane.lane)}) · Test direction ${rt.survey.direction} · ${wibStamp(lane.record_start_utc)}`,
+    `${rt.survey.speed_kmh} km/h · ${wetting} · ${fmtInt(lane.length_m)} m recorded · run mean μ ${muText(lane.stats.mean_mu)} · mean speed ${lane.stats.mean_speed_kmh?.toFixed(1) ?? "—"} km/h`,
+  ];
+}
 
 export interface Overlays {
   raw: boolean;

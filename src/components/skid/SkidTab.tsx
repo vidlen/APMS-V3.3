@@ -1,10 +1,12 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, Link as LinkIcon } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_SKID_BASIS } from "@/config/skid";
 import { useNarrowViewport } from "@/hooks/useNarrowViewport";
 import { useSkidData } from "@/hooks/useSkidData";
 import { useSkidTrace } from "@/hooks/useSkidTrace";
 import { governingFor, summarize } from "@/lib/skid";
+import { parseSkidUrl, skidUrlSearch } from "@/lib/skid-url";
 import type { LaneCode, RunwayId, SkidBasis, SkidRunwayData } from "@/types/skid";
 import SkidMap from "./SkidMap";
 import SkidLegend from "./SkidLegend";
@@ -31,16 +33,45 @@ import {
 export default function SkidTab() {
   const { data: bundles, error, loading } = useSkidData();
   const narrow = useNarrowViewport();
-  const [runway, setRunway] = useState<RunwayId>("06-24");
-  const [basis, setBasis] = useState<SkidBasis>(DEFAULT_SKID_BASIS);
+  // A shared link (?rw=07L-25R&unit=301&lane=L3.0 ...) sets the first view; read once, validated in skid-url.ts.
+  const [initial] = useState(() => parseSkidUrl(window.location.search));
+  const [runway, setRunway] = useState<RunwayId>(initial.runway ?? "06-24");
+  const [basis, setBasis] = useState<SkidBasis>(initial.basis ?? DEFAULT_SKID_BASIS);
   const [mapLanes, setMapLanes] = useState<MapLanes>("off");
   const [heatmapRes, setHeatmapRes] = useState<HeatRes>("unit");
-  const [selected, setSelected] = useState<SelectedUnit | null>(null);
-  const [profileView, setProfileView] = useState<ProfileView>("one");
+  const [selected, setSelected] = useState<SelectedUnit | null>(
+    initial.unit ? { runway: initial.runway ?? "06-24", unit: initial.unit } : null,
+  );
+  const [profileView, setProfileView] = useState<ProfileView>(initial.view ?? "one");
   // null = the runway's default lane (the governing lane of its lowest unit).
-  const [profileLanes, setProfileLanes] = useState<LaneCode[] | null>(null);
-  const [xDomain, setXDomain] = useState<XDomain>(null);
+  const [profileLanes, setProfileLanes] = useState<LaneCode[] | null>(
+    initial.view === "compare" && initial.lanes ? initial.lanes : initial.lane ? [initial.lane] : null,
+  );
+  const [xDomain, setXDomain] = useState<XDomain>(initial.x ?? null);
   const [overlays, setOverlays] = useState<Overlays>(DEFAULT_OVERLAYS);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Keep the address bar in step with the view so it can be copied and shared (replaceState: no history
+  // entries; history.state is passed through so the router's own state survives).
+  useEffect(() => {
+    const q = skidUrlSearch(window.location.search, {
+      runway,
+      unit: selected?.runway === runway ? selected.unit : undefined,
+      lane: profileLanes?.[0],
+      lanes: profileLanes ?? undefined,
+      basis,
+      view: profileView,
+      x: xDomain,
+    });
+    window.history.replaceState(window.history.state, "", q ? `?${q}` : window.location.pathname);
+  }, [runway, selected, profileLanes, basis, profileView, xDomain]);
+
+  const copyLink = () => {
+    void navigator.clipboard.writeText(window.location.href).then(() => {
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 1500);
+    });
+  };
 
   // Per-meter readings of the active runway: the profile is always on the page, so this loads on entry.
   const traceState = useSkidTrace(runway);
@@ -147,7 +178,16 @@ export default function SkidTab() {
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">Survey: June 2026 · 65 km/h</p>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={copyLink}
+          className="h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md text-xs font-medium border border-border text-foreground hover:bg-secondary transition-colors"
+          title="Copy a link to this exact view (runway, unit, lane, basis, zoom)"
+        >
+          {linkCopied ? <Check size={12} /> : <LinkIcon size={12} />} {linkCopied ? "Link copied" : "Copy link"}
+        </button>
+        <p className="text-xs text-muted-foreground">Survey: June 2026 · 65 km/h</p>
+      </div>
     </div>
   );
 

@@ -19,6 +19,7 @@ import { countByCondition, pciCategories, parsePCIValue, type SectionData } from
 import type { SurveyYear } from "@/lib/survey-years";
 import { useData, useRepairLog } from "@/lib/data-store";
 import { aggregateRepairLog } from "@/lib/repair-log";
+import { SKID_URL_KEYS } from "@/lib/skid-url";
 
 // Raised from 640 after measuring the actual content: the workspace tab
 // bar's full labels alone need ~742px of scrollWidth (774px of viewport
@@ -72,13 +73,27 @@ export default function Home() {
   const [detailedSection, setDetailedSection] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(isNarrowViewport);
   const [minSplashElapsed, setMinSplashElapsed] = useState(skipSplash);
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("pci");
+  // A shared link can open straight on a tab: ?tab=skid (the Skid tab adds its own view keys).
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(
+    () => WORKSPACE_TABS.find((t) => t.id === new URLSearchParams(window.location.search).get("tab"))?.id ?? "pci",
+  );
   const [hasLoadedOnce, setHasLoadedOnce] = useState(skipSplash);
   const [activeBands, setActiveBands] = useState<Set<string>>(new Set());
   const [showTable, setShowTable] = useState(false);
   const [noBranchNotice, setNoBranchNotice] = useState(false);
   const bandCounts = useMemo(() => countByCondition(sections), [sections]);
   const { docked: panelDocked, pos: panelPos, setDocked: setPanelDocked, setPos: setPanelPos } = usePciScalePanel();
+
+  // Mirror the tab in the address bar (replaceState: no history entries) and drop the Skid keys
+  // once another tab is shown. history.state is passed through so the router's own state survives.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (activeTab === "pci") p.delete("tab");
+    else p.set("tab", activeTab);
+    if (activeTab !== "skid") SKID_URL_KEYS.forEach((k) => p.delete(k));
+    const q = p.toString().replace(/%2C/g, ",");
+    window.history.replaceState(window.history.state, "", q ? `?${q}` : window.location.pathname);
+  }, [activeTab]);
 
   // Keep the branded splash on screen for a minimum window so it doesn't
   // just flash by when data loads quickly off localhost.

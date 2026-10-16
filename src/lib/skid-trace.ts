@@ -288,3 +288,20 @@ export function readingAtX(rt: SkidRunwayTrace, lane: SkidLaneTrace, x: number, 
   const i = step === 1 ? Math.ceil(Math.floor(x) - c - 1e-9) : Math.round(x - c);
   return i >= 0 && i < lane.mu.length ? i : null;
 }
+
+// ---------------------------------------------------------------- tanda tiap 100 ft (printout alat)
+
+export interface FeetMark { x: number; feet: number }
+
+/** Marks every 100 ft (30.48 m) of DISTANCE from the start of recording, as on the device printout
+ *  (FAA AC 150/5320-12C App. 3 par. 1.a(9)), that fall inside `domain` and inside the recording. */
+export function feetMarks(rt: SkidRunwayTrace, lane: SkidLaneTrace, domain: readonly [number, number]): FeetMark[] {
+  const step = 30.48;
+  const base = rt.unit_bounds.last_end_m - lane.s0_m; // x of DISTANCE d is base + d
+  const lastD = lane.d_first + lane.mu.length - 1;
+  const out: FeetMark[] = [];
+  const from = Math.max(1, Math.ceil((domain[0] - base) / step));
+  const to = Math.min(Math.floor((domain[1] - base) / step), Math.floor(lastD / step));
+  for (let k = from; k <= to; k++) out.push({ x: base + k * step, feet: k * 100 });
+  return out;
+}
