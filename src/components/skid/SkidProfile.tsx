@@ -1,10 +1,13 @@
 import { useMemo } from "react";
+import { Download } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { FAA_TRACKS, LANE_ORDER, LANE_STYLE, SKID_SPEED } from "@/config/skid";
+import { FAA_LINES, FAA_TRACKS, LANE_ORDER, LANE_STYLE, SKID_SPEED } from "@/config/skid";
 import { useElementWidth } from "@/hooks/useElementWidth";
 import type { SkidTraceState } from "@/hooks/useSkidTrace";
+import { exportName, profileCsv } from "@/lib/skid-export";
 import { evaluateFaa320, fixedSegments, laneKey, profileRows, thirds as thirdsOf, unitXRange } from "@/lib/skid-trace";
 import type { LaneCode } from "@/types/skid";
+import { downloadText, profileSvg, type LegendItem, type SvgPart } from "./skid-svg";
 import SkidProfileChart from "./SkidProfileChart";
 import SkidSpeedStrip from "./SkidSpeedStrip";
 import SkidSegmentTable from "./SkidSegmentTable";
@@ -119,6 +122,47 @@ export default function SkidProfile({
   const faaTrack = (codes: LaneCode[]) => {
     onView("compare");
     onLanes(codes);
+  };
+
+  // The two header lines double as the title of the exported SVG.
+  const wetting = rt ? (rt.survey.wetting === "On" ? "self-wetting (1 mm)" : `wetting ${rt.survey.wetting}`) : "";
+  const headerLines: string[] =
+    rt && lane
+      ? view === "one"
+        ? [
+            `${runway.label} · Lane ${lane.lane} (${laneDescription(lane.lane)}) · Test direction ${rt.survey.direction} · ${wibStamp(lane.record_start_utc)}`,
+            `${rt.survey.speed_kmh} km/h · ${wetting} · ${fmtInt(lane.length_m)} m recorded · run mean μ ${muText(lane.stats.mean_mu)} · mean speed ${lane.stats.mean_speed_kmh?.toFixed(1) ?? "—"} km/h`,
+          ]
+        : [
+            `${runway.label} · ${view === "all" ? "All lanes" : `Compare ${shown.map((l) => l.lane).join(", ")}`} · Test direction ${rt.survey.direction} · ${surveyDate(rt.survey)} (WIB)`,
+            `${rt.survey.speed_kmh} km/h · ${wetting} · ${overlays.avg ? "lines are the 152 m moving average of each lane" : "raw 1 m readings"}`,
+          ]
+      : [];
+
+  // Export: CSV of the visible readings, SVG of the plots with title and legend (for figures).
+  const lanesLabel = view === "all" ? "all-lanes" : shownCodes.join("_");
+  const exportCsv = () => {
+    if (rt && ma) downloadText(exportName(rt.runway, lanesLabel, domain, "csv"), profileCsv(rt, shownCodes, domain, ma), "text/csv;charset=utf-8");
+  };
+  const exportSvg = () => {
+    const card = plotRef.current;
+    if (!rt || !card) return;
+    const legend: LegendItem[] = [
+      ...(overlays.raw ? [{ label: "Raw 1 m readings (min–max)", color: "#8A8A8A" }] : []),
+      ...(overlays.avg
+        ? view === "compare"
+          ? shown.map((l) => ({ label: `${l.lane} 152 m avg`, color: LANE_STYLE[l.lane].color, dash: LANE_STYLE[l.lane].dash }))
+          : [{ label: "152 m moving average", color: "#26215C" }]
+        : []),
+      ...(view === "one" && overlays.segments ? [{ label: "152 m segments", color: "#D97706" }] : []),
+      ...(view === "one" && overlays.thirds ? [{ label: "Thirds", color: "#0F766E", dash: "7 4" }] : []),
+      ...FAA_LINES.map((l) => ({ label: l.label, color: l.color, dash: l.dash })),
+    ];
+    // One lane: friction plot then speed strip; Compare: one plot; All lanes: eight plots, labelled in a side column.
+    const parts: SvgPart[] = [...card.querySelectorAll<SVGSVGElement>("svg.recharts-surface")].map((svg, i) =>
+      view === "all" ? { svg, x: LABEL_W, label: [shown[i].lane, `μ̄ ${muText(shown[i].stats.mean_mu)}`] } : { svg },
+    );
+    downloadText(exportName(rt.runway, lanesLabel, domain, "svg"), profileSvg(parts, headerLines, legend), "image/svg+xml;charset=utf-8");
   };
 
   const overlayKeys = Object.keys(OVERLAY_LABELS) as (keyof Overlays)[];
@@ -241,6 +285,20 @@ export default function SkidProfile({
             Selected unit ± 150 m
           </button>
         </div>
+
+        <div className="flex items-center gap-2">
+          <button onClick={exportCsv} disabled={!rt || !ma} className={`${btn} inline-flex items-center gap-1.5`} title="Download the visible 1 m readings as CSV">
+            <Download size={12} /> Download CSV
+          </button>
+          <button
+            onClick={exportSvg}
+            disabled={!rt || plotWidth === 0}
+            className={`${btn} inline-flex items-center gap-1.5`}
+            title="Download the plot as SVG, with title and legend"
+          >
+            <Download size={12} /> Download SVG
+          </button>
+        </div>
       </div>
 
       {/* The measuring div is always rendered so the observer attaches before the data arrives. */}
@@ -253,30 +311,8 @@ export default function SkidProfile({
           ) : (
             <>
               <div className="mb-2 text-[12px] leading-snug">
-                {view === "one" ? (
-                  <>
-                    <p className="font-semibold">
-                      {runway.label} · Lane {lane.lane} ({laneDescription(lane.lane)}) · Test direction {rt.survey.direction} ·{" "}
-                      {wibStamp(lane.record_start_utc)}
-                    </p>
-                    <p className="text-neutral-600">
-                      {rt.survey.speed_kmh} km/h · {rt.survey.wetting === "On" ? "self-wetting (1 mm)" : `wetting ${rt.survey.wetting}`} ·{" "}
-                      {fmtInt(lane.length_m)} m recorded · run mean μ {muText(lane.stats.mean_mu)} · mean speed{" "}
-                      {lane.stats.mean_speed_kmh?.toFixed(1) ?? "—"} km/h
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-semibold">
-                      {runway.label} · {view === "all" ? "All lanes" : `Compare ${shown.map((l) => l.lane).join(", ")}`} · Test direction{" "}
-                      {rt.survey.direction} · {surveyDate(rt.survey)} (WIB)
-                    </p>
-                    <p className="text-neutral-600">
-                      {rt.survey.speed_kmh} km/h · {rt.survey.wetting === "On" ? "self-wetting (1 mm)" : `wetting ${rt.survey.wetting}`} ·{" "}
-                      {overlays.avg ? "lines are the 152 m moving average of each lane" : "raw 1 m readings"}
-                    </p>
-                  </>
-                )}
+                <p className="font-semibold">{headerLines[0]}</p>
+                <p className="text-neutral-600">{headerLines[1]}</p>
               </div>
               {view === "compare" && compareLegend}
 

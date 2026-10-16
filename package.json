@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --test src/lib/risk.test.ts src/lib/data-overrides.test.ts src/lib/icao.test.ts src/lib/repair-log.test.ts src/lib/dominant-distress.test.ts src/lib/risk-unit.test.ts src/lib/risk-unit-adapter.test.ts src/lib/pci-utils.test.ts src/lib/paver-import.test.ts src/config/riskScales.test.ts src/lib/skid.test.ts src/lib/skid-trace.test.ts",
+    "test": "node --test src/lib/risk.test.ts src/lib/data-overrides.test.ts src/lib/icao.test.ts src/lib/repair-log.test.ts src/lib/dominant-distress.test.ts src/lib/risk-unit.test.ts src/lib/risk-unit-adapter.test.ts src/lib/pci-utils.test.ts src/lib/paver-import.test.ts src/config/riskScales.test.ts src/lib/skid.test.ts src/lib/skid-trace.test.ts src/lib/skid-export.test.ts",
     "skid:1m": "node scripts/skid/build-skid-1m.mjs --csv data-raw/skid-2026"
   },
   "dependencies": {

@@ -11,6 +11,8 @@ import SkidLegend from "./SkidLegend";
 import SkidSummary from "./SkidSummary";
 import SkidHeatmap from "./SkidHeatmap";
 import SkidProfile from "./SkidProfile";
+import SkidRuns from "./SkidRuns";
+import SkidAbout from "./SkidAbout";
 import SkidUnitPanel from "./SkidUnitPanel";
 import {
   BASIS_LABEL,
@@ -149,8 +151,14 @@ export default function SkidTab() {
     </div>
   );
 
-  // Everything left of the docked unit panel; on narrow screens the panel
-  // joins the same column, right after the heatmap.
+  // The page reads map → summary → heatmap → profile, then (reference material) the run list and About.
+  // On desktop the unit panel is docked on the right; on narrow screens it sits between the profile and the tail.
+  const tail = (
+    <>
+      <SkidRuns data={perUnit} />
+      <SkidAbout data={perUnit} />
+    </>
+  );
   const main = (
     <>
       {toolbar}
@@ -201,13 +209,17 @@ export default function SkidTab() {
       <div className="h-full overflow-y-auto custom-scrollbar">
         {main}
         <div className="bg-card border-t border-border">{panel}</div>
+        {tail}
       </div>
     );
   }
 
   return (
     <div className="h-full flex">
-      <div className="flex-1 min-w-0 overflow-y-auto custom-scrollbar">{main}</div>
+      <div className="flex-1 min-w-0 overflow-y-auto custom-scrollbar">
+        {main}
+        {tail}
+      </div>
       <aside className="shrink-0 w-[400px] overflow-y-auto custom-scrollbar bg-card border-l border-border">{panel}</aside>
     </div>
   );

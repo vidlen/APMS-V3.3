@@ -71,6 +71,13 @@ export function wibStamp(utcIso: string): string {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} WIB`;
 }
 
+/** "6 Jun 00:21:06" from a UTC ISO timestamp, in WIB (the start times listed in the survey notes). */
+export function wibClock(utcIso: string): string {
+  const d = new Date(Date.parse(utcIso) + 7 * 3600_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
 /** "L3.0" -> "3.0 m left of CL" (left/right as seen in the test direction). */
 export const laneDescription = (code: LaneCode): string => `${code.slice(1)} m ${code[0] === "L" ? "left" : "right"} of CL`;
 
