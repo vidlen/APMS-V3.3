@@ -28,7 +28,6 @@ interface SkidMapProps {
   basis: SkidBasis;
   selected: SelectedUnit | null;
   mapLanes: MapLanes;
-  /** Must be stable (useCallback) - the map's click handler is bound once. */
   onSelect: (runway: RunwayId, unit: number) => void;
 }
 
@@ -60,9 +59,9 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, on
   );
 
   // The pointer handlers are bound once; they read the latest props from here.
-  const live = useRef({ unitsByRw, basis });
+  const live = useRef({ unitsByRw, basis, onSelect });
   useEffect(() => {
-    live.current = { unitsByRw, basis };
+    live.current = { unitsByRw, basis, onSelect };
   });
 
   const unitStyle = useCallback(
@@ -154,7 +153,7 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, on
     map.on("click", (e) => {
       const f = hitAt(e.pixel);
       if (!f) return;
-      onSelect(f.get("rw") as RunwayId, (f.get("unit") ?? f.get("sampleUnit")) as number);
+      live.current.onSelect(f.get("rw") as RunwayId, (f.get("unit") ?? f.get("sampleUnit")) as number);
     });
 
     map.on("pointermove", (e) => {
@@ -188,8 +187,8 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, on
       map.setTarget(undefined);
       tooltipEl.remove();
     };
-    // bundles never change after the first load; onSelect is stable.
-  }, [bundles, onSelect]);
+    // bundles never change after the first load.
+  }, [bundles]);
 
   useEffect(() => {
     unitLayerRef.current?.setStyle(unitStyle);

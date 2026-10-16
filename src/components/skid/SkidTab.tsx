@@ -3,13 +3,24 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_SKID_BASIS } from "@/config/skid";
 import { useNarrowViewport } from "@/hooks/useNarrowViewport";
 import { useSkidData } from "@/hooks/useSkidData";
-import type { RunwayId, SkidBasis, SkidRunwayData } from "@/types/skid";
+import { governingFor, summarize } from "@/lib/skid";
+import type { LaneCode, RunwayId, SkidBasis, SkidRunwayData } from "@/types/skid";
 import SkidMap from "./SkidMap";
 import SkidLegend from "./SkidLegend";
 import SkidSummary from "./SkidSummary";
 import SkidHeatmap from "./SkidHeatmap";
+import SkidProfile from "./SkidProfile";
 import SkidUnitPanel from "./SkidUnitPanel";
-import { BASIS_LABEL, RUNWAYS, RUNWAY_BY_ID, type MapLanes, type SelectedUnit } from "./skid-ui";
+import {
+  BASIS_LABEL,
+  DEFAULT_OVERLAYS,
+  RUNWAYS,
+  RUNWAY_BY_ID,
+  type MapLanes,
+  type Overlays,
+  type SelectedUnit,
+  type XDomain,
+} from "./skid-ui";
 
 export default function SkidTab() {
   const { data: bundles, error, loading } = useSkidData();
@@ -18,18 +29,41 @@ export default function SkidTab() {
   const [basis, setBasis] = useState<SkidBasis>(DEFAULT_SKID_BASIS);
   const [mapLanes, setMapLanes] = useState<MapLanes>("off");
   const [selected, setSelected] = useState<SelectedUnit | null>(null);
-
-  // Clicking a unit on either runway also switches the active runway.
-  const handleSelect = useCallback((rw: RunwayId, unit: number) => {
-    setRunway(rw);
-    setSelected({ runway: rw, unit });
-  }, []);
-  const clearSelection = useCallback(() => setSelected(null), []);
+  // null = the runway's default lane (the governing lane of its lowest unit).
+  const [profileLanes, setProfileLanes] = useState<LaneCode[] | null>(null);
+  const [xDomain, setXDomain] = useState<XDomain>(null);
+  const [overlays, setOverlays] = useState<Overlays>(DEFAULT_OVERLAYS);
 
   const perUnit = useMemo(
     () => bundles && (Object.fromEntries(RUNWAYS.map((r) => [r.id, bundles[r.id].data])) as Record<RunwayId, SkidRunwayData>),
     [bundles],
   );
+
+  // Lane and zoom belong to one runway, so switching runway resets them.
+  const changeRunway = (rw: RunwayId) => {
+    setRunway(rw);
+    setProfileLanes(null);
+    setXDomain(null);
+  };
+
+  // Clicking a unit anywhere also switches the active runway, and the profile
+  // follows to that unit's governing lane.
+  const handleSelect = useCallback(
+    (rw: RunwayId, unit: number) => {
+      setSelected({ runway: rw, unit });
+      const u = perUnit?.[rw].units[unit - 1];
+      const gov = u ? governingFor(u, basis) : null;
+      if (rw !== runway) {
+        setRunway(rw);
+        setXDomain(null);
+        setProfileLanes(gov ? [gov.lane] : null);
+      } else if (gov) {
+        setProfileLanes([gov.lane]);
+      }
+    },
+    [perUnit, basis, runway],
+  );
+  const clearSelection = useCallback(() => setSelected(null), []);
 
   if (error) {
     return (
@@ -46,12 +80,13 @@ export default function SkidTab() {
   }
 
   const data = perUnit[runway];
+  const defaultLane = summarize(data, "152m").lowest?.lane ?? "L3.0";
   const panel = <SkidUnitPanel data={perUnit} selected={selected} basis={basis} onClose={clearSelection} />;
 
   const toolbar = (
     <div className={`${narrow ? "" : "sticky top-0 z-20"} flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5 bg-card border-b border-border`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <ToggleGroup type="single" variant="outline" size="sm" value={runway} onValueChange={(v) => v && setRunway(v as RunwayId)}>
+        <ToggleGroup type="single" variant="outline" size="sm" value={runway} onValueChange={(v) => v && changeRunway(v as RunwayId)}>
           {RUNWAYS.map((r) => (
             <ToggleGroupItem key={r.id} value={r.id}>
               {r.label}
@@ -98,6 +133,18 @@ export default function SkidTab() {
         runway={RUNWAY_BY_ID[runway]}
         basis={basis}
         selectedUnit={selected?.runway === runway ? selected.unit : null}
+        onSelectUnit={(unit) => handleSelect(runway, unit)}
+      />
+      <SkidProfile
+        runway={RUNWAY_BY_ID[runway]}
+        selectedUnit={selected?.runway === runway ? selected.unit : null}
+        lane={profileLanes?.[0] ?? defaultLane}
+        onLane={(lane) => setProfileLanes([lane])}
+        xDomain={xDomain}
+        onXDomain={setXDomain}
+        overlays={overlays}
+        onOverlays={setOverlays}
+        narrow={narrow}
         onSelectUnit={(unit) => handleSelect(runway, unit)}
       />
     </>
