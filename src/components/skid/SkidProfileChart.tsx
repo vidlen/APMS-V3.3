@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { FAA_LINES, LANE_STYLE } from "@/config/skid";
 import {
   feetMarks,
+  fixedSegments,
   laneKey,
   readingAtX,
   stationOf,
@@ -53,11 +54,10 @@ interface TipProps {
   payload?: { payload: ProfileRow }[];
   rt: SkidRunwayTrace;
   lanes: SkidLaneTrace[];
-  /** Row spacing in m (1 when zoomed in); decides which reading a row stands for. */
-  step: number;
 }
 
-function ProfileTip({ active, payload, rt, lanes, step }: TipProps) {
+// Rows are 1 m wide in every view (see SkidProfile), so a row IS one reading: lo_<lane> is that reading.
+function ProfileTip({ active, payload, rt, lanes }: TipProps) {
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   const box = "rounded border border-neutral-300 bg-white px-2 py-1 text-[11px] text-neutral-800 shadow-md whitespace-nowrap";
@@ -68,14 +68,12 @@ function ProfileTip({ active, payload, rt, lanes, step }: TipProps) {
         <div className="font-medium">x {fmtInt(row.x)} m</div>
         {lanes.map((l) => {
           const k = laneKey(l.lane);
-          const lo = row[`lo_${k}`];
-          const hi = row[`hi_${k}`];
+          const mu = row[`lo_${k}`];
           const ma = row[`ma_${k}`];
-          const mu = lo === null || hi === null ? "—" : lo === hi ? lo.toFixed(2) : `${lo.toFixed(2)}–${hi.toFixed(2)}`;
           return (
             <div key={l.lane}>
               <span className="inline-block w-2 h-2 mr-1 rounded-sm" style={{ backgroundColor: LANE_STYLE[l.lane].color }} />
-              {l.lane} μ {mu}
+              {l.lane} μ {mu === null ? "—" : mu.toFixed(2)}
               {ma !== null && <> · avg {ma.toFixed(2)}</>}
             </div>
           );
@@ -86,13 +84,12 @@ function ProfileTip({ active, payload, rt, lanes, step }: TipProps) {
 
   const lane = lanes[0];
   const k = laneKey(lane.lane);
-  const i = readingAtX(rt, lane, row.x, step);
-  const lo = row[`lo_${k}`];
-  const hi = row[`hi_${k}`];
+  const i = readingAtX(rt, lane, row.x, 1);
+  const mu1 = row[`lo_${k}`];
   const ma = row[`ma_${k}`];
   const v = row[`v_${k}`];
   const unit = i === null ? null : unitAtStation(rt, stationOf(lane, i));
-  const mu = lo === null || hi === null ? "—" : lo === hi ? lo.toFixed(2) : `${lo.toFixed(2)}–${hi.toFixed(2)}`;
+  const mu = mu1 === null ? "—" : mu1.toFixed(2);
   return (
     <div className={box}>
       x {fmtInt(row.x)} m
@@ -125,7 +122,6 @@ interface SkidProfileChartProps {
   /** Selected unit on this runway, or null. */
   selectedUnit: number | null;
   /** Only drawn in "one" mode. */
-  segments?: SkidSegment[];
   thirds?: SkidSegment[];
   onZoom: (domain: [number, number]) => void;
   onSelectUnit: (unit: number) => void;
@@ -148,7 +144,6 @@ export default function SkidProfileChart({
   domain,
   overlays,
   selectedUnit,
-  segments = [],
   thirds = [],
   onZoom,
   onSelectUnit,
@@ -177,12 +172,22 @@ export default function SkidProfileChart({
   ];
   const unitRange = selectedUnit === null ? null : unitXRange(rt, selectedUnit);
 
+  // The 152.4 m (500 ft) segment averages of every plotted lane, drawn as steps in all three views.
+  const laneKeys = lanes.map((l) => l.lane).join(",");
+  const laneSegments = useMemo(
+    () => lanes.map((l) => ({ lane: l, items: fixedSegments(l).filter((s) => s.mean !== null) })),
+    // `lanes` is rebuilt every render; the lane codes (and the trace) are what matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rt, laneKeys],
+  );
   // A segment as an x range along the runway, same convention as the table.
-  const segX = (s: SkidSegment): [number, number] => [
-    xOf(rt, lane, s.dFrom - lane.d_first) - 0.5,
-    xOf(rt, lane, s.dTo - lane.d_first) + 0.5,
+  const segX = (l: SkidLaneTrace, s: SkidSegment): [number, number] => [
+    xOf(rt, l, s.dFrom - l.d_first) - 0.5,
+    xOf(rt, l, s.dTo - l.d_first) + 0.5,
   ];
-  const measured = segments.filter((s) => s.mean !== null);
+  const segmentColor = (l: SkidLaneTrace) => (compare ? LANE_STYLE[l.lane].color : SEGMENT);
+  // Zoomed in far enough (5 px per metre) every metre also gets its own dot.
+  const dotted = (width - Y_AXIS_WIDTH - margin.left - margin.right) / (domain[1] - domain[0]) >= 5;
 
   const activeX = (state: { activeLabel?: string | number } | null): number | null =>
     state?.activeLabel === undefined ? null : Number(state.activeLabel);
@@ -351,14 +356,22 @@ export default function SkidProfileChart({
           />
         ))}
 
+      {/* The readings as recorded: one point per metre, one line per lane. Rows are 1 m wide, so lo_ is the reading itself (hi_ is identical and not drawn). */}
       {overlays.raw &&
-        lanes.map((l) => (
-          <Line key={`lo-${l.lane}`} dataKey={`lo_${laneKey(l.lane)}`} {...rawStyle(l)} strokeWidth={1} dot={false} isAnimationActive={false} connectNulls={false} />
-        ))}
-      {overlays.raw &&
-        lanes.map((l) => (
-          <Line key={`hi-${l.lane}`} dataKey={`hi_${laneKey(l.lane)}`} {...rawStyle(l)} strokeWidth={1} dot={false} isAnimationActive={false} connectNulls={false} />
-        ))}
+        lanes.map((l) => {
+          const raw = rawStyle(l);
+          return (
+            <Line
+              key={`raw-${l.lane}`}
+              dataKey={`lo_${laneKey(l.lane)}`}
+              {...raw}
+              strokeWidth={1}
+              dot={dotted ? { r: 1.6, fill: raw.stroke, fillOpacity: raw.strokeOpacity, stroke: "none" } : false}
+              isAnimationActive={false}
+              connectNulls={false}
+            />
+          );
+        })}
       {overlays.avg &&
         lanes.map((l) => (
           <Line
@@ -373,38 +386,41 @@ export default function SkidProfileChart({
           />
         ))}
 
-      {mode === "one" &&
-        overlays.segments &&
-        measured.map((s) => {
-          const [xa, xb] = segX(s);
-          return (
+      {/* 152 m segments: a flat line at each segment's average with a vertical riser to the next one (the steps of the printout). */}
+      {overlays.segments &&
+        laneSegments.map(({ lane: l, items }) =>
+          items.map((s) => {
+            const [xa, xb] = segX(l, s);
+            return (
+              <ReferenceLine
+                key={`seg-${l.lane}-${s.index}`}
+                ifOverflow="hidden"
+                segment={[
+                  { x: xa, y: s.mean as number },
+                  { x: xb, y: s.mean as number },
+                ]}
+                stroke={segmentColor(l)}
+                strokeWidth={mode === "one" ? 2 : 1.5}
+                label={mode === "one" && showSegmentLabels ? { value: (s.mean as number).toFixed(2), position: "top", fill: "#B45309", fontSize: 10 } : undefined}
+              />
+            );
+          }),
+        )}
+      {overlays.segments &&
+        laneSegments.map(({ lane: l, items }) =>
+          items.slice(0, -1).map((s, j) => (
             <ReferenceLine
-              key={`seg-${s.index}`}
+              key={`step-${l.lane}-${s.index}`}
               ifOverflow="hidden"
               segment={[
-                { x: xa, y: s.mean as number },
-                { x: xb, y: s.mean as number },
+                { x: segX(l, s)[1], y: s.mean as number },
+                { x: segX(l, s)[1], y: items[j + 1].mean as number },
               ]}
-              stroke={SEGMENT}
-              strokeWidth={2}
-              label={showSegmentLabels ? { value: (s.mean as number).toFixed(2), position: "top", fill: "#B45309", fontSize: 10 } : undefined}
+              stroke={segmentColor(l)}
+              strokeWidth={mode === "one" ? 1.25 : 1}
             />
-          );
-        })}
-      {mode === "one" &&
-        overlays.segments &&
-        measured.slice(0, -1).map((s, j) => (
-          <ReferenceLine
-            key={`step-${s.index}`}
-            ifOverflow="hidden"
-            segment={[
-              { x: segX(s)[1], y: s.mean as number },
-              { x: segX(s)[1], y: measured[j + 1].mean as number },
-            ]}
-            stroke={SEGMENT}
-            strokeWidth={1.25}
-          />
-        ))}
+          )),
+        )}
 
       {mode === "one" &&
         overlays.thirds &&
@@ -414,8 +430,8 @@ export default function SkidProfileChart({
               key={`third-${s.index}`}
               ifOverflow="hidden"
               segment={[
-                { x: segX(s)[0], y: s.mean },
-                { x: segX(s)[1], y: s.mean },
+                { x: segX(lane, s)[0], y: s.mean },
+                { x: segX(lane, s)[1], y: s.mean },
               ]}
               stroke={THIRD}
               strokeWidth={2}
@@ -428,7 +444,7 @@ export default function SkidProfileChart({
       {drag && drag.b !== null && <ReferenceArea x1={drag.a} x2={drag.b} fill={INK} fillOpacity={0.14} stroke={INK} strokeOpacity={0.4} ifOverflow="hidden" />}
 
       <Tooltip
-        content={<ProfileTip rt={rt} lanes={lanes} step={rows.length > 1 ? rows[1].x - rows[0].x : 1} />}
+        content={<ProfileTip rt={rt} lanes={lanes} />}
         isAnimationActive={false}
         cursor={{ stroke: INK, strokeWidth: 1, strokeDasharray: "3 3" }}
       />

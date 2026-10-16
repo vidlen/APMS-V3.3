@@ -29,7 +29,6 @@ import {
 
 const SYNC_ONE = "skid-profile-one";
 const SYNC_ALL = "skid-profile-all";
-const MAX_ROWS = 1500;
 const LABEL_W = 72; // lane label column of the small multiples
 const MINI_PLOT = 104; // plot height of each small multiple in All lanes (0.1 of μ = 10 px, room for the top chart's FAA labels)
 
@@ -92,7 +91,7 @@ export default function SkidProfile({
   const rows = useMemo(
     () =>
       rt && shown.length > 0 && ma && plotWidth > 0
-        ? profileRows(rt, shown, domain, Math.min(MAX_ROWS, plotWidth - profileMargin(plotWidth).right - Y_AXIS_WIDTH), ma)
+        ? profileRows(rt, shown, domain, Math.ceil(domain[1] - domain[0]), ma) // maxRows = the visible length in metres: every row is exactly 1 m, i.e. one reading
         : [],
     // `shown` and `domain` are rebuilt each render; their keys are the real dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,7 +132,7 @@ export default function SkidProfile({
         ? laneHeaderLines(rt, runway, lane)
         : [
             `${runway.label} · ${view === "all" ? "All lanes" : `Compare ${shown.map((l) => l.lane).join(", ")}`} · Test direction ${rt.survey.direction} · ${surveyDate(rt.survey)} (WIB)`,
-            `${rt.survey.speed_kmh} km/h · ${wetting} · ${overlays.avg ? "lines are the 152 m moving average of each lane" : "raw 1 m readings"}`,
+            `${rt.survey.speed_kmh} km/h · ${wetting} · ${[overlays.raw && "thin line = 1 m readings", overlays.avg && "thick line = 152 m moving average", overlays.segments && "steps = 152 m segments"].filter(Boolean).join(" · ") || "no overlay selected"}`,
           ]
       : [];
 
@@ -146,13 +145,13 @@ export default function SkidProfile({
     const card = plotRef.current;
     if (!rt || !card) return;
     const legend: LegendItem[] = [
-      ...(overlays.raw ? [{ label: "Raw 1 m readings (min–max)", color: "#8A8A8A" }] : []),
+      ...(overlays.raw ? [{ label: view === "compare" ? "1 m readings (lane colours)" : "1 m readings", color: "#8A8A8A" }] : []),
       ...(overlays.avg
         ? view === "compare"
           ? shown.map((l) => ({ label: `${l.lane} 152 m avg`, color: LANE_STYLE[l.lane].color, dash: LANE_STYLE[l.lane].dash }))
           : [{ label: "152 m moving average", color: "#26215C" }]
         : []),
-      ...(view === "one" && overlays.segments ? [{ label: "152 m segments", color: "#D97706" }] : []),
+      ...(overlays.segments ? [{ label: view === "compare" ? "152 m segments (lane colours)" : "152 m segments", color: "#D97706" }] : []),
       ...(view === "one" && overlays.thirds ? [{ label: "Thirds", color: "#0F766E", dash: "7 4" }] : []),
       ...FAA_LINES.map((l) => ({ label: l.label, color: l.color, dash: l.dash })),
     ];
@@ -266,8 +265,8 @@ export default function SkidProfile({
               <ToggleGroupItem
                 key={o}
                 value={o}
-                // Segments and thirds are single-lane printout items.
-                disabled={(o === "segments" || o === "thirds") && view !== "one"}
+                // Thirds are a single-lane printout item (the 152 m segment steps are drawn in every view).
+                disabled={o === "thirds" && view !== "one"}
               >
                 {OVERLAY_LABELS[o]}
               </ToggleGroupItem>
@@ -335,7 +334,6 @@ export default function SkidProfile({
                     domain={domain}
                     overlays={overlays}
                     selectedUnit={selectedUnit}
-                    segments={segments}
                     thirds={thirds}
                     onZoom={(d) => onXDomain(clamp(d))}
                     onSelectUnit={onSelectUnit}

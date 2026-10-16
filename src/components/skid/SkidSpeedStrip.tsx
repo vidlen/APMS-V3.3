@@ -20,7 +20,7 @@ interface SkidSpeedStripProps {
 
 // Test speed along the same x axis as the friction plot. The grey band is the
 // FAA tolerance (65 ± 5 km/h); readings outside it are orange (no red/green here).
-// ponytail: flags per plotted row, i.e. a 1-2 m average when zoomed out; the run total comes from stats.
+// Rows are 1 m wide, so each flag is an individual reading; the run total comes from stats.
 export default function SkidSpeedStrip({ rows, laneKey, width, domain, syncId }: SkidSpeedStripProps) {
   const data = useMemo(
     () =>

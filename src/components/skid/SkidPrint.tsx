@@ -6,7 +6,7 @@ import { fixedSegments, laneKey, profileRows, thirds as thirdsOf } from "@/lib/s
 import type { SkidLaneTrace, SkidRunwayTrace } from "@/types/skid";
 import SkidProfileChart from "./SkidProfileChart";
 import SkidSpeedStrip from "./SkidSpeedStrip";
-import { DEFAULT_OVERLAYS, fmtInt, laneHeaderLines, muText, profileMargin, Y_AXIS_WIDTH, type RunwayMeta } from "./skid-ui";
+import { DEFAULT_OVERLAYS, fmtInt, laneHeaderLines, muText, Y_AXIS_WIDTH, type RunwayMeta } from "./skid-ui";
 
 const PAGE_W = 1000; // plot width in CSS px; A4 landscape with 10 mm margins is ~1047 px wide
 const noop = () => undefined;
@@ -32,7 +32,7 @@ const CSS = `
 function PrintPage({ rt, runway, lane, ma }: { rt: SkidRunwayTrace; runway: RunwayMeta; lane: SkidLaneTrace; ma: NonNullable<SkidTraceState["ma"]> }) {
   const domain: [number, number] = [0, rt.unit_bounds.last_end_m];
   const rows = useMemo(
-    () => profileRows(rt, [lane], domain, PAGE_W - profileMargin(PAGE_W).right - Y_AXIS_WIDTH, ma),
+    () => profileRows(rt, [lane], domain, Math.ceil(domain[1] - domain[0]), ma), // 1 m rows: one point per metre
     // domain is rebuilt each render; it only depends on rt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rt, lane, ma],
@@ -60,7 +60,6 @@ function PrintPage({ rt, runway, lane, ma }: { rt: SkidRunwayTrace; runway: Runw
         domain={domain}
         overlays={DEFAULT_OVERLAYS}
         selectedUnit={null}
-        segments={segments}
         thirds={thirds}
         onZoom={noop}
         onSelectUnit={noop}

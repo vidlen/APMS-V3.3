@@ -58,3 +58,20 @@ test("O. bacaan di sel profil/heatmap = bacaan yang nilainya ditampilkan sel itu
     assert.equal(readingAtX(t, lane, 5, 1), null, "di luar rekaman");
   }
 });
+
+test("R. grafik profil menggambar bacaan 1 m apa adanya: maxRows = panjang rentang -> satu baris = satu bacaan", () => {
+  for (const name of ["skid-06-24-2026-1m.json", "skid-07L-25R-2026-1m.json"]) {
+    const t = SkidTraceSchema.parse(read(name));
+    const tma = new Map<LaneCode, (number | null)[]>(t.lanes.map((l) => [l.lane, movingAverage(l.mu).mean]));
+    const span = t.unit_bounds.last_end_m;
+    for (const lane of t.lanes) {
+      const k = lane.lane.replace(".", "_");
+      const rows = profileRows(t, [lane], [0, span], Math.ceil(span), tma); // seluruh runway
+      assert.ok(rows.every((r, i) => i === 0 || r.x - rows[i - 1].x === 1), `${name} ${lane.lane}: baris berjarak tepat 1 m`);
+      assert.ok(rows.every((r) => r[`lo_${k}`] === r[`hi_${k}`]), `${name} ${lane.lane}: lo = hi = bacaan, jadi cukup satu garis`);
+      const withValue = rows.filter((r) => r[`lo_${k}`] !== null);
+      assert.equal(withValue.length, lane.mu.length, `${name} ${lane.lane}: tiap bacaan tepat satu baris (tidak ada yang hilang atau ganda)`);
+      assert.deepEqual(withValue.map((r) => r[`lo_${k}`]), lane.mu, `${name} ${lane.lane}: nilainya persis bacaan aslinya, berurutan`);
+    }
+  }
+});

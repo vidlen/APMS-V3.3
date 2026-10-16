@@ -107,7 +107,7 @@ export const OVERLAY_LABELS: Record<keyof Overlays, string> = {
 };
 
 /** Plot margins and y-axis width, shared by the friction plot and the speed strip so they line up. */
-export const PROFILE_MARGIN = { top: 28, right: 112, bottom: 38, left: 4 };
+export const PROFILE_MARGIN = { top: 28, right: 140, bottom: 38, left: 4 };
 export const Y_AXIS_WIDTH = 46;
 /** Narrow plots drop the right-hand FAA labels (and their margin) to keep room for the trace. */
 export const isCompactPlot = (width: number): boolean => width < 520;
