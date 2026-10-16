@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import OlMap from "ol/Map";
 import View from "ol/View";
 import Feature from "ol/Feature";
@@ -17,9 +17,10 @@ import type { FeatureLike } from "ol/Feature";
 import { classifySkid, SKID_CLASS_META } from "@/config/skid";
 import { governingFor, laneMu, unitStationRange } from "@/lib/skid";
 import { laneLine, makeStationProjector } from "@/lib/skid-geo";
-import type { RunwayId, SkidBasis, SkidUnit } from "@/types/skid";
+import { meterRuns, stationOf, unitAtStation } from "@/lib/skid-trace";
+import type { RunwayId, SkidBasis, SkidRunwayTrace, SkidUnit } from "@/types/skid";
 import type { SkidRunwayBundle } from "@/hooks/useSkidData";
-import { BASIS_LABEL, RUNWAYS, RUNWAY_BY_ID, muText, type MapLanes, type SelectedUnit } from "./skid-ui";
+import { BASIS_LABEL, RUNWAYS, RUNWAY_BY_ID, fmtInt, muText, type MapLanes, type SelectedUnit } from "./skid-ui";
 import "ol/ol.css";
 
 interface SkidMapProps {
@@ -28,11 +29,25 @@ interface SkidMapProps {
   basis: SkidBasis;
   selected: SelectedUnit | null;
   mapLanes: MapLanes;
+  /** Per-meter readings of the active runway (needed for Map lanes: Per meter). */
+  trace: SkidRunwayTrace | null;
   onSelect: (runway: RunwayId, unit: number) => void;
 }
 
 const GEOJSON_OPTS = { dataProjection: "EPSG:4326", featureProjection: "EPSG:3857" };
 const SELECTED_COLOR = "#FACC15";
+/** Per-meter lines only draw from this zoom on (they are 1 m long). */
+const METER_MIN_ZOOM = 15;
+
+// One coloured line per lane piece. A dark casing keeps the pale classes
+// readable on the satellite imagery; the width follows the zoom (resolution = m/px).
+function laneStyle(feature: FeatureLike, resolution: number): Style[] {
+  const width = Math.max(2, 1.2 / resolution);
+  return [
+    new Style({ stroke: new Stroke({ color: "rgba(0,0,0,0.55)", width: width + 1.5 }) }),
+    new Style({ stroke: new Stroke({ color: SKID_CLASS_META[feature.get("cls") as keyof typeof SKID_CLASS_META].color, width }) }),
+  ];
+}
 
 /** Re-expresses any CSS colour at (its own alpha × mul). */
 function withAlpha(color: string, mul: number): string {
@@ -43,11 +58,13 @@ function withAlpha(color: string, mul: number): string {
 // Skid-resistance map: same basemap and view as the PCI map; sample units are
 // filled by the governing-lane class, optionally with one coloured line per
 // lane over the units.
-export default function SkidMap({ bundles, runway, basis, selected, mapLanes, onSelect }: SkidMapProps) {
+export default function SkidMap({ bundles, runway, basis, selected, mapLanes, trace, onSelect }: SkidMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<OlMap | null>(null);
   const unitLayerRef = useRef<VectorLayer | null>(null);
   const laneSourceRef = useRef<VectorSource | null>(null);
+  const meterSourceRef = useRef<VectorSource | null>(null);
+  const [zoomedIn, setZoomedIn] = useState(false);
   const extentsRef = useRef<Partial<Record<RunwayId, Extent>>>({});
 
   const unitsByRw = useMemo(
@@ -93,19 +110,13 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, on
     const unitSource = new VectorSource();
     const unitLayer = new VectorLayer({ source: unitSource });
     const laneSource = new VectorSource();
-    const laneLayer = new VectorLayer({
-      source: laneSource,
-      // A dark casing keeps the pale classes readable on the satellite imagery.
-      style: (feature, resolution) => {
-        const width = Math.max(2, 1.2 / resolution);
-        return [
-          new Style({ stroke: new Stroke({ color: "rgba(0,0,0,0.55)", width: width + 1.5 }) }),
-          new Style({ stroke: new Stroke({ color: SKID_CLASS_META[feature.get("cls") as keyof typeof SKID_CLASS_META].color, width }) }),
-        ];
-      },
-    });
+    const laneLayer = new VectorLayer({ source: laneSource, style: laneStyle });
+    const meterSource = new VectorSource();
+    // minZoom is exclusive in OpenLayers; a hair under 15 makes zoom 15 itself draw.
+    const meterLayer = new VectorLayer({ source: meterSource, style: laneStyle, minZoom: METER_MIN_ZOOM - 0.01 });
     unitLayerRef.current = unitLayer;
     laneSourceRef.current = laneSource;
+    meterSourceRef.current = meterSource;
 
     const all = createEmpty();
     for (const rw of RUNWAYS) {
@@ -134,11 +145,15 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, on
         }),
         unitLayer,
         laneLayer,
+        meterLayer,
       ],
       view: new View({ center: fromLonLat([106.66, -6.12]), zoom: 14, maxZoom: 19, minZoom: 11 }),
       controls: [new Zoom()],
     });
-    map.getView().fit(all, { padding: [48, 48, 48, 48], maxZoom: 17 });
+    // Track whether the view is zoomed in far enough for the per-meter lines (drives the "Zoom in" hint).
+    const view = map.getView();
+    view.on("change:resolution", () => setZoomedIn((view.getZoom() ?? 0) >= METER_MIN_ZOOM));
+    view.fit(all, { padding: [48, 48, 48, 48], maxZoom: 17 });
     mapInstance.current = map;
 
     const tooltipEl = document.createElement("div");
@@ -167,7 +182,12 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, on
       const rw = f.get("rw") as RunwayId;
       const label = RUNWAY_BY_ID[rw].label;
       const { unitsByRw: byRw, basis: b } = live.current;
-      if (f.get("lane")) {
+      if (f.get("kind") === "meter") {
+        const [d1, d2, u1, u2] = [f.get("d1"), f.get("d2"), f.get("u1"), f.get("u2")] as number[];
+        tooltipEl.textContent =
+          `${label} · ${f.get("lane")} · DISTANCE ${fmtInt(d1)}–${fmtInt(d2)} m · Units ${u1 === u2 ? u1 : `${u1}–${u2}`}` +
+          ` — μ ${muText(f.get("muMin") as number)}–${muText(f.get("muMax") as number)} (1 m readings)`;
+      } else if (f.get("lane")) {
         tooltipEl.textContent = `${label} · ${f.get("lane")} · Unit ${f.get("unit")} — μ ${muText(f.get("mu") as number)} (${BASIS_LABEL[b]} basis)`;
       } else {
         const unit = f.get("sampleUnit") as number;
@@ -224,6 +244,42 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, on
     source.addFeatures(features);
   }, [bundles, runway, basis, mapLanes]);
 
+  // Per-meter lines: consecutive 1 m readings of the same class become one piece of line,
+  // from half a metre before the first reading to half a metre after the last.
+  useEffect(() => {
+    const source = meterSourceRef.current;
+    if (!source) return;
+    source.clear();
+    if (mapLanes !== "meter" || !trace || trace.runway !== runway) return;
+    const project = makeStationProjector(bundles[runway].data.units);
+    const features: Feature[] = [];
+    for (const t of trace.lanes) {
+      for (const run of meterRuns(t.mu)) {
+        if (run.cls === "noData") continue;
+        const s1 = stationOf(t, run.iFrom) + 0.5;
+        const s2 = stationOf(t, run.iTo) - 0.5;
+        const vals = t.mu.slice(run.iFrom, run.iTo + 1).filter((v): v is number => v !== null);
+        features.push(
+          new Feature({
+            geometry: new LineString(laneLine(project, s1, s2, t.offset_m)),
+            kind: "meter",
+            rw: runway,
+            lane: t.lane,
+            cls: run.cls,
+            d1: t.d_first + run.iFrom,
+            d2: t.d_first + run.iTo,
+            u1: unitAtStation(trace, stationOf(t, run.iFrom)),
+            u2: unitAtStation(trace, stationOf(t, run.iTo)),
+            unit: unitAtStation(trace, stationOf(t, Math.round((run.iFrom + run.iTo) / 2))),
+            muMin: Math.min(...vals),
+            muMax: Math.max(...vals),
+          }),
+        );
+      }
+    }
+    source.addFeatures(features);
+  }, [bundles, runway, mapLanes, trace]);
+
   const zoomTo = (rw: RunwayId) => {
     const ext = extentsRef.current[rw];
     if (ext) mapInstance.current?.getView().fit(ext, { padding: [48, 48, 48, 48], maxZoom: 17, duration: 300 });
@@ -232,6 +288,11 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, on
   return (
     <div className="relative w-full h-full">
       <div ref={mapRef} className="w-full h-full" />
+      {mapLanes === "meter" && !zoomedIn && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 panel-surface rounded-md px-3 py-1.5 text-xs text-foreground pointer-events-none">
+          Zoom in to see per-meter lanes
+        </div>
+      )}
       <div className="absolute top-3 right-3 z-10 flex flex-wrap justify-end gap-1.5">
         {RUNWAYS.map((r) => (
           <button

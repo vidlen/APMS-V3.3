@@ -3,15 +3,61 @@ import { X } from "lucide-react";
 import { Bar, BarChart, Cell, LabelList, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { classifySkid, FAA_LINES, LANE_ORDER, SKID_CLASS_META } from "@/config/skid";
 import { governingFor, laneMu } from "@/lib/skid";
+import { indicesInUnit, unitXRange, xOf } from "@/lib/skid-trace";
 import { usePavementData } from "@/hooks/usePavementData";
-import type { RunwayId, SkidBasis, SkidRunwayData } from "@/types/skid";
-import { BASIS_LABEL, RUNWAY_BY_ID, muText, surveyDate, type SelectedUnit } from "./skid-ui";
+import { useSkidTrace } from "@/hooks/useSkidTrace";
+import type { LaneCode, RunwayId, SkidBasis, SkidRunwayData, SkidRunwayTrace } from "@/types/skid";
+import { BASIS_LABEL, RUNWAY_BY_ID, fmtInt, muText, surveyDate, type SelectedUnit } from "./skid-ui";
 
 interface SkidUnitPanelProps {
   data: Record<RunwayId, SkidRunwayData>;
   selected: SelectedUnit | null;
   basis: SkidBasis;
   onClose: () => void;
+  /** Open this lane in the friction profile, zoomed to the given x range. */
+  onShowInProfile: (lane: LaneCode, domain: [number, number]) => void;
+}
+
+// The 1 m readings that make up one sample unit: eight lane rows, each cell
+// placed by its x inside the unit and coloured by its class.
+function MeterGrid({ rt, unit }: { rt: SkidRunwayTrace; unit: number }) {
+  const [x0, x1] = unitXRange(rt, unit);
+  const width = x1 - x0;
+  return (
+    <div className="space-y-px">
+      {rt.lanes.map((t) => {
+        const idx = indicesInUnit(rt, t, unit);
+        return (
+          <div key={t.lane} className="flex items-center gap-2">
+            <span className="shrink-0 w-[68px] text-[10px] font-mono text-muted-foreground">
+              {t.lane} · {idx.length}
+            </span>
+            <div className="relative flex-1 h-5 bg-secondary/40 overflow-hidden rounded-sm">
+              {idx.map((i) => {
+                const mu = t.mu[i];
+                const cls = classifySkid(mu);
+                return (
+                  <span
+                    key={i}
+                    className="absolute inset-y-0 flex items-center justify-center text-[9px] font-mono border-x border-black/20"
+                    style={{
+                      left: `${((xOf(rt, t, i) - 0.5 - x0) / width) * 100}%`,
+                      width: `${(1 / width) * 100}%`,
+                      backgroundColor: SKID_CLASS_META[cls].color,
+                      color: SKID_CLASS_META[cls].text,
+                    }}
+                    title={`${t.lane} · DISTANCE ${fmtInt(t.d_first + i)} m · μ ${muText(mu)}`}
+                  >
+                    {mu === null ? "" : mu.toFixed(2)}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 const MUTED = "hsl(var(--muted-foreground))";
@@ -21,8 +67,10 @@ const OTHER_BASIS: Record<SkidBasis, SkidBasis> = { "152m": "10m", "10m": "152m"
 // Lanes left to right as seen in the test direction, with a gap at the centre line.
 const BAR_ORDER = [...LANE_ORDER.slice(0, 4), "CL", ...LANE_ORDER.slice(4)];
 
-export default function SkidUnitPanel({ data, selected, basis, onClose }: SkidUnitPanelProps) {
+export default function SkidUnitPanel({ data, selected, basis, onClose, onShowInProfile }: SkidUnitPanelProps) {
   const { unitsBySection } = usePavementData("2026");
+  // Per-meter readings of the selected unit's runway (cached; loads once a unit is selected).
+  const { trace: rt } = useSkidTrace(selected?.runway ?? null);
 
   const unit = selected ? data[selected.runway].units[selected.unit - 1] : null;
   const g = unit ? governingFor(unit, basis) : null;
@@ -156,6 +204,43 @@ export default function SkidUnitPanel({ data, selected, basis, onClose }: SkidUn
           ))}
         </tbody>
       </table>
+
+      {unit.lanes_measured > 0 && (
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <h4 className="panel-label">Per-meter readings</h4>
+            <button
+              disabled={!rt || rt.runway !== selected.runway}
+              onClick={() => {
+                if (!rt) return;
+                const [a, b] = unitXRange(rt, selected.unit);
+                onShowInProfile(g?.lane ?? unit.lanes.find((l) => l.mu_10m !== null)!.lane, [
+                  Math.max(0, a - 150),
+                  Math.min(rt.unit_bounds.last_end_m, b + 150),
+                ]);
+              }}
+              className="h-7 px-2.5 rounded-md text-[11px] font-medium border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              title="Open this unit in the friction profile"
+            >
+              Show in profile
+            </button>
+          </div>
+          {rt && rt.runway === selected.runway ? (
+            <>
+              <MeterGrid rt={rt} unit={selected.unit} />
+              {rt.lanes.some((t) =>
+                indicesInUnit(rt, t, selected.unit).some((i) => i > 0 && t.mu[i] === t.mu[i - 1] && t.speed_kmh[i] === t.speed_kmh[i - 1]),
+              ) && (
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                  Some 1 m rows repeat the previous reading (device sampling); they are kept, as in the unit average.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">Loading per-meter readings...</p>
+          )}
+        </div>
+      )}
 
       <div className="space-y-1.5 text-[11px] text-muted-foreground">
         {unit.lanes_measured === 0 ? (

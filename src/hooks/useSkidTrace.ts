@@ -16,3 +16,5 @@ export function useSkidTrace(runway: RunwayId | null) {
   );
   return { trace: data, ma, loading, error };
 }
+
+export type SkidTraceState = ReturnType<typeof useSkidTrace>;

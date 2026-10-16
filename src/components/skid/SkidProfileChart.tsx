@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
-import { FAA_LINES } from "@/config/skid";
+import { FAA_LINES, LANE_STYLE } from "@/config/skid";
 import {
   indexAtX,
   laneKey,
@@ -12,7 +12,7 @@ import {
   type SkidSegment,
 } from "@/lib/skid-trace";
 import type { SkidLaneTrace, SkidRunwayTrace } from "@/types/skid";
-import { Y_AXIS_WIDTH, isCompactPlot, profileMargin, type Overlays, type RunwayMeta } from "./skid-ui";
+import { Y_AXIS_WIDTH, fmtInt, isCompactPlot, profileMargin, type Overlays, type RunwayMeta } from "./skid-ui";
 
 // The profile reads like the vehicle printout, so it sits on a light "paper"
 // plot with literal colours (also what the SVG export will carry).
@@ -21,8 +21,6 @@ const AXIS = "#555555";
 const TICK = { fontSize: 10, fill: AXIS };
 const SEGMENT = "#D97706";
 const THIRD = "#0F766E";
-
-const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 
 function xTicks(domain: readonly [number, number]) {
   const [a, b] = domain;
@@ -52,12 +50,37 @@ interface TipProps {
   active?: boolean;
   payload?: { payload: ProfileRow }[];
   rt: SkidRunwayTrace;
-  lane: SkidLaneTrace;
+  lanes: SkidLaneTrace[];
 }
 
-function ProfileTip({ active, payload, rt, lane }: TipProps) {
+function ProfileTip({ active, payload, rt, lanes }: TipProps) {
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
+  const box = "rounded border border-neutral-300 bg-white px-2 py-1 text-[11px] text-neutral-800 shadow-md whitespace-nowrap";
+
+  if (lanes.length > 1) {
+    return (
+      <div className={box}>
+        <div className="font-medium">x {fmtInt(row.x)} m</div>
+        {lanes.map((l) => {
+          const k = laneKey(l.lane);
+          const lo = row[`lo_${k}`];
+          const hi = row[`hi_${k}`];
+          const ma = row[`ma_${k}`];
+          const mu = lo === null || hi === null ? "—" : lo === hi ? lo.toFixed(2) : `${lo.toFixed(2)}–${hi.toFixed(2)}`;
+          return (
+            <div key={l.lane}>
+              <span className="inline-block w-2 h-2 mr-1 rounded-sm" style={{ backgroundColor: LANE_STYLE[l.lane].color }} />
+              {l.lane} μ {mu}
+              {ma !== null && <> · avg {ma.toFixed(2)}</>}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const lane = lanes[0];
   const k = laneKey(lane.lane);
   const i = indexAtX(rt, lane, row.x);
   const lo = row[`lo_${k}`];
@@ -67,14 +90,14 @@ function ProfileTip({ active, payload, rt, lane }: TipProps) {
   const unit = i === null ? null : unitAtStation(rt, stationOf(lane, i));
   const mu = lo === null || hi === null ? "—" : lo === hi ? lo.toFixed(2) : `${lo.toFixed(2)}–${hi.toFixed(2)}`;
   return (
-    <div className="rounded border border-neutral-300 bg-white px-2 py-1 text-[11px] text-neutral-800 shadow-md whitespace-nowrap">
-      x {fmt(row.x)} m
+    <div className={box}>
+      x {fmtInt(row.x)} m
       {i === null ? (
         " · not recorded"
       ) : (
         <>
           {" "}
-          · DISTANCE {fmt(lane.d_first + i)} m · Unit {unit ?? "—"} · μ {mu} (1 m)
+          · DISTANCE {fmtInt(lane.d_first + i)} m · Unit {unit ?? "—"} · μ {mu} (1 m)
           {ma !== null && <> · 152 m avg {ma.toFixed(2)}</>}
           {v !== null && <> · {v.toFixed(1)} km/h</>}
         </>
@@ -85,7 +108,10 @@ function ProfileTip({ active, payload, rt, lane }: TipProps) {
 
 interface SkidProfileChartProps {
   rt: SkidRunwayTrace;
-  lane: SkidLaneTrace;
+  /** One lane for "one" and "mini"; several for "compare". */
+  lanes: SkidLaneTrace[];
+  /** one = full vehicle view, compare = lanes overlaid, mini = small multiple in "All lanes". */
+  mode: "one" | "compare" | "mini";
   runway: RunwayMeta;
   rows: ProfileRow[];
   width: number;
@@ -94,17 +120,23 @@ interface SkidProfileChartProps {
   overlays: Overlays;
   /** Selected unit on this runway, or null. */
   selectedUnit: number | null;
-  segments: SkidSegment[];
-  thirds: SkidSegment[];
+  /** Only drawn in "one" mode. */
+  segments?: SkidSegment[];
+  thirds?: SkidSegment[];
   onZoom: (domain: [number, number]) => void;
   onSelectUnit: (unit: number) => void;
   syncId?: string;
+  /** "mini" only: which of the stacked charts carries the axes and FAA labels. */
+  showXAxis?: boolean;
+  showTopAxis?: boolean;
+  showFaaLabels?: boolean;
 }
 
-// Friction trace of one lane along the runway, left to right in the test direction.
+// Friction trace(s) along the runway, left to right in the test direction.
 export default function SkidProfileChart({
   rt,
-  lane,
+  lanes,
+  mode,
   runway,
   rows,
   width,
@@ -112,20 +144,33 @@ export default function SkidProfileChart({
   domain,
   overlays,
   selectedUnit,
-  segments,
-  thirds,
+  segments = [],
+  thirds = [],
   onZoom,
   onSelectUnit,
   syncId,
+  showXAxis = true,
+  showTopAxis = true,
+  showFaaLabels = true,
 }: SkidProfileChartProps) {
-  const k = laneKey(lane.lane);
+  const mini = mode === "mini";
+  const compare = mode === "compare";
+  const lane = lanes[0];
   const [drag, setDrag] = useState<{ a: number; b: number | null } | null>(null);
   const { ticks, labelStep } = xTicks(domain);
   const top = unitTicks(rt, domain);
   const showSegmentLabels = domain[1] - domain[0] <= 1500;
+  const compact = isCompactPlot(width);
+  const base = profileMargin(width);
+  const margin = { ...base, top: mini && !showTopAxis ? 6 : base.top, bottom: mini && !showXAxis ? 4 : base.bottom };
 
-  const startX = xOf(rt, lane, 0) - 0.5;
-  const endX = xOf(rt, lane, lane.mu.length - 1) + 0.5;
+  // Hatched "Not recorded" ends: outside the range any plotted lane recorded.
+  const startX = Math.min(...lanes.map((l) => xOf(rt, l, 0) - 0.5));
+  const endX = Math.max(...lanes.map((l) => xOf(rt, l, l.mu.length - 1) + 0.5));
+  const unrecorded: [number, number][] = [
+    [Math.max(domain[0], 0), Math.min(domain[1], startX)],
+    [Math.max(domain[0], endX), Math.min(domain[1], rt.unit_bounds.last_end_m)],
+  ];
   const unitRange = selectedUnit === null ? null : unitXRange(rt, selectedUnit);
 
   // A segment as an x range along the runway, same convention as the table.
@@ -150,18 +195,15 @@ export default function SkidProfileChart({
     if (unit !== null) onSelectUnit(unit);
   };
 
-  // Hatched "Not recorded" ends, clipped to the visible range.
-  const unrecorded: [number, number][] = [
-    [Math.max(domain[0], 0), Math.min(domain[1], startX)],
-    [Math.max(domain[0], endX), Math.min(domain[1], rt.unit_bounds.last_end_m)],
-  ];
+  const rawStyle = (l: SkidLaneTrace) =>
+    compare ? { stroke: LANE_STYLE[l.lane].color, strokeOpacity: 0.4 } : { stroke: "#8A8A8A", strokeOpacity: 1 };
 
   return (
     <ComposedChart
       width={width}
       height={height}
       data={rows}
-      margin={profileMargin(width)}
+      margin={margin}
       syncId={syncId}
       syncMethod="value"
       style={{ cursor: "crosshair", userSelect: "none" }}
@@ -193,10 +235,11 @@ export default function SkidProfileChart({
         dataKey="x"
         domain={domain}
         allowDataOverflow
+        hide={!showXAxis}
         ticks={ticks}
         interval={0}
         tick={TICK}
-        tickFormatter={(v: number) => (v % labelStep === 0 ? fmt(v) : "")}
+        tickFormatter={(v: number) => (v % labelStep === 0 ? fmtInt(v) : "")}
         tickSize={4}
         stroke={AXIS}
         label={{ value: `Distance from ${runway.testEnd} end of runway (m)`, position: "insideBottom", offset: -2, fill: AXIS, fontSize: 11 }}
@@ -208,6 +251,7 @@ export default function SkidProfileChart({
         dataKey="x"
         domain={domain}
         allowDataOverflow
+        hide={!showTopAxis}
         ticks={top.ticks}
         interval={0}
         tick={TICK}
@@ -218,17 +262,22 @@ export default function SkidProfileChart({
       <YAxis
         domain={[0, 1]}
         allowDataOverflow
-        ticks={[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]}
+        ticks={mini ? [0, 0.5, 1] : [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]}
         tickFormatter={(v: number) => v.toFixed(1)}
         tick={TICK}
         width={Y_AXIS_WIDTH}
         stroke={AXIS}
-        label={{ value: "Friction coefficient μ", angle: -90, position: "insideLeft", offset: 14, fill: AXIS, fontSize: 11, style: { textAnchor: "middle" } }}
+        label={
+          mini
+            ? undefined
+            : { value: "Friction coefficient μ", angle: -90, position: "insideLeft", offset: 14, fill: AXIS, fontSize: 11, style: { textAnchor: "middle" } }
+        }
       />
 
       {/* Class backgrounds: below minimum, between minimum and maintenance planning. */}
       <ReferenceArea y1={0} y2={0.5} fill="#3C3489" fillOpacity={0.06} stroke="none" />
       <ReferenceArea y1={0.5} y2={0.6} fill="#7F77DD" fillOpacity={0.06} stroke="none" />
+      {/* recharts does not look inside Fragments, so each overlay element is its own conditional. */}
       {overlays.band && <ReferenceArea y1={0.44} y2={0.56} fill="url(#skid-band)" stroke="none" />}
       {overlays.band && <ReferenceArea y1={0.54} y2={0.66} fill="url(#skid-band)" stroke="none" />}
 
@@ -242,8 +291,8 @@ export default function SkidProfileChart({
             stroke="none"
             ifOverflow="hidden"
             label={
-              // Skip the label when the hatched band is too narrow to hold it.
-              ((x2 - x1) / (domain[1] - domain[0])) * (width - Y_AXIS_WIDTH - profileMargin(width).left - profileMargin(width).right) < 80
+              // Skip the label when the hatched band is too narrow to hold it, and on the small multiples.
+              mini || ((x2 - x1) / (domain[1] - domain[0])) * (width - Y_AXIS_WIDTH - margin.left - margin.right) < 80
                 ? undefined
                 : { value: "Not recorded", position: "insideTop", fill: "#77766E", fontSize: 10 }
             }
@@ -260,7 +309,7 @@ export default function SkidProfileChart({
           stroke="#B45309"
           strokeWidth={1.5}
           ifOverflow="hidden"
-          label={{ value: `Unit ${selectedUnit}`, position: "insideTopRight", fill: "#92400E", fontSize: 10, fontWeight: 600 }}
+          label={mini ? undefined : { value: `Unit ${selectedUnit}`, position: "insideTopRight", fill: "#92400E", fontSize: 10, fontWeight: 600 }}
         />
       )}
 
@@ -271,18 +320,34 @@ export default function SkidProfileChart({
           stroke={l.color}
           strokeDasharray={l.dash || undefined}
           strokeWidth={1.25}
-          label={isCompactPlot(width) ? undefined : { value: l.label, position: "right", fill: l.color, fontSize: 9 }}
+          label={compact || !showFaaLabels ? undefined : { value: l.label, position: "right", fill: l.color, fontSize: 9 }}
         />
       ))}
 
-      {/* recharts does not look inside Fragments, so each overlay element is its own conditional. */}
-      {overlays.raw && <Line dataKey={`lo_${k}`} stroke="#8A8A8A" strokeWidth={1} dot={false} isAnimationActive={false} connectNulls={false} />}
-      {overlays.raw && <Line dataKey={`hi_${k}`} stroke="#8A8A8A" strokeWidth={1} dot={false} isAnimationActive={false} connectNulls={false} />}
-      {overlays.avg && (
-        <Line dataKey={`ma_${k}`} stroke={INK} strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
-      )}
+      {overlays.raw &&
+        lanes.map((l) => (
+          <Line key={`lo-${l.lane}`} dataKey={`lo_${laneKey(l.lane)}`} {...rawStyle(l)} strokeWidth={1} dot={false} isAnimationActive={false} connectNulls={false} />
+        ))}
+      {overlays.raw &&
+        lanes.map((l) => (
+          <Line key={`hi-${l.lane}`} dataKey={`hi_${laneKey(l.lane)}`} {...rawStyle(l)} strokeWidth={1} dot={false} isAnimationActive={false} connectNulls={false} />
+        ))}
+      {overlays.avg &&
+        lanes.map((l) => (
+          <Line
+            key={`ma-${l.lane}`}
+            dataKey={`ma_${laneKey(l.lane)}`}
+            stroke={compare ? LANE_STYLE[l.lane].color : INK}
+            strokeDasharray={compare ? LANE_STYLE[l.lane].dash || undefined : undefined}
+            strokeWidth={mini ? 1.5 : 2}
+            dot={false}
+            isAnimationActive={false}
+            connectNulls={false}
+          />
+        ))}
 
-      {overlays.segments &&
+      {mode === "one" &&
+        overlays.segments &&
         measured.map((s) => {
           const [xa, xb] = segX(s);
           return (
@@ -299,7 +364,8 @@ export default function SkidProfileChart({
             />
           );
         })}
-      {overlays.segments &&
+      {mode === "one" &&
+        overlays.segments &&
         measured.slice(0, -1).map((s, j) => (
           <ReferenceLine
             key={`step-${s.index}`}
@@ -313,7 +379,8 @@ export default function SkidProfileChart({
           />
         ))}
 
-      {overlays.thirds &&
+      {mode === "one" &&
+        overlays.thirds &&
         thirds.map((s) =>
           s.mean === null ? null : (
             <ReferenceLine
@@ -334,7 +401,7 @@ export default function SkidProfileChart({
       {drag && drag.b !== null && <ReferenceArea x1={drag.a} x2={drag.b} fill={INK} fillOpacity={0.14} stroke={INK} strokeOpacity={0.4} ifOverflow="hidden" />}
 
       <Tooltip
-        content={<ProfileTip rt={rt} lane={lane} />}
+        content={<ProfileTip rt={rt} lanes={lanes} />}
         isAnimationActive={false}
         cursor={{ stroke: INK, strokeWidth: 1, strokeDasharray: "3 3" }}
       />

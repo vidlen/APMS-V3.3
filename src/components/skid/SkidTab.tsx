@@ -3,6 +3,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_SKID_BASIS } from "@/config/skid";
 import { useNarrowViewport } from "@/hooks/useNarrowViewport";
 import { useSkidData } from "@/hooks/useSkidData";
+import { useSkidTrace } from "@/hooks/useSkidTrace";
 import { governingFor, summarize } from "@/lib/skid";
 import type { LaneCode, RunwayId, SkidBasis, SkidRunwayData } from "@/types/skid";
 import SkidMap from "./SkidMap";
@@ -16,8 +17,11 @@ import {
   DEFAULT_OVERLAYS,
   RUNWAYS,
   RUNWAY_BY_ID,
+  mirrorLane,
+  type HeatRes,
   type MapLanes,
   type Overlays,
+  type ProfileView,
   type SelectedUnit,
   type XDomain,
 } from "./skid-ui";
@@ -28,11 +32,16 @@ export default function SkidTab() {
   const [runway, setRunway] = useState<RunwayId>("06-24");
   const [basis, setBasis] = useState<SkidBasis>(DEFAULT_SKID_BASIS);
   const [mapLanes, setMapLanes] = useState<MapLanes>("off");
+  const [heatmapRes, setHeatmapRes] = useState<HeatRes>("unit");
   const [selected, setSelected] = useState<SelectedUnit | null>(null);
+  const [profileView, setProfileView] = useState<ProfileView>("one");
   // null = the runway's default lane (the governing lane of its lowest unit).
   const [profileLanes, setProfileLanes] = useState<LaneCode[] | null>(null);
   const [xDomain, setXDomain] = useState<XDomain>(null);
   const [overlays, setOverlays] = useState<Overlays>(DEFAULT_OVERLAYS);
+
+  // Per-meter readings of the active runway: the profile is always on the page, so this loads on entry.
+  const traceState = useSkidTrace(runway);
 
   const perUnit = useMemo(
     () => bundles && (Object.fromEntries(RUNWAYS.map((r) => [r.id, bundles[r.id].data])) as Record<RunwayId, SkidRunwayData>),
@@ -46,24 +55,33 @@ export default function SkidTab() {
     setXDomain(null);
   };
 
-  // Clicking a unit anywhere also switches the active runway, and the profile
-  // follows to that unit's governing lane.
+  // Clicking a unit anywhere also switches the active runway. In One lane view
+  // the profile follows to that unit's governing lane; the other views keep their lanes.
   const handleSelect = useCallback(
     (rw: RunwayId, unit: number) => {
       setSelected({ runway: rw, unit });
       const u = perUnit?.[rw].units[unit - 1];
       const gov = u ? governingFor(u, basis) : null;
+      const follow = profileView === "one" && gov ? [gov.lane] : null;
       if (rw !== runway) {
         setRunway(rw);
         setXDomain(null);
-        setProfileLanes(gov ? [gov.lane] : null);
-      } else if (gov) {
-        setProfileLanes([gov.lane]);
+        setProfileLanes(follow);
+      } else if (follow) {
+        setProfileLanes(follow);
       }
     },
-    [perUnit, basis, runway],
+    [perUnit, basis, runway, profileView],
   );
   const clearSelection = useCallback(() => setSelected(null), []);
+
+  // "Show in profile" in the unit panel: One lane view on that unit, then scroll to it.
+  const showInProfile = useCallback((lane: LaneCode, domain: [number, number]) => {
+    setProfileView("one");
+    setProfileLanes([lane]);
+    setXDomain(domain);
+    document.getElementById("skid-profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   if (error) {
     return (
@@ -81,7 +99,19 @@ export default function SkidTab() {
 
   const data = perUnit[runway];
   const defaultLane = summarize(data, "152m").lowest?.lane ?? "L3.0";
-  const panel = <SkidUnitPanel data={perUnit} selected={selected} basis={basis} onClose={clearSelection} />;
+  const lane0 = profileLanes?.[0] ?? defaultLane;
+
+  // Compare needs at least two lanes to be useful (start with the mirror lane); One lane keeps just the first.
+  const changeView = (v: ProfileView) => {
+    setProfileView(v);
+    if (v === "compare" && (profileLanes?.length ?? 1) < 2) setProfileLanes([lane0, mirrorLane(lane0)]);
+    if (v === "one") setProfileLanes([lane0]);
+  };
+
+  const selectedHere = selected?.runway === runway ? selected.unit : null;
+  const panel = (
+    <SkidUnitPanel data={perUnit} selected={selected} basis={basis} onClose={clearSelection} onShowInProfile={showInProfile} />
+  );
 
   const toolbar = (
     <div className={`${narrow ? "" : "sticky top-0 z-20"} flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5 bg-card border-b border-border`}>
@@ -110,6 +140,7 @@ export default function SkidTab() {
           <ToggleGroup type="single" variant="outline" size="sm" value={mapLanes} onValueChange={(v) => v && setMapLanes(v as MapLanes)}>
             <ToggleGroupItem value="off">Off</ToggleGroupItem>
             <ToggleGroupItem value="unit">Per unit</ToggleGroupItem>
+            <ToggleGroupItem value="meter">Per meter</ToggleGroupItem>
           </ToggleGroup>
         </div>
       </div>
@@ -124,28 +155,43 @@ export default function SkidTab() {
     <>
       {toolbar}
       <div className="relative shrink-0 h-[46vh] min-h-[300px]">
-        <SkidMap bundles={bundles} runway={runway} basis={basis} selected={selected} mapLanes={mapLanes} onSelect={handleSelect} />
+        <SkidMap
+          bundles={bundles}
+          runway={runway}
+          basis={basis}
+          selected={selected}
+          mapLanes={mapLanes}
+          trace={traceState.trace ?? null}
+          onSelect={handleSelect}
+        />
       </div>
-      <SkidLegend basis={basis} />
+      <SkidLegend basis={basis} res={mapLanes === "meter" ? "meter" : "unit"} />
       <SkidSummary data={data} basis={basis} onSelectUnit={(unit) => handleSelect(runway, unit)} />
       <SkidHeatmap
         data={data}
         runway={RUNWAY_BY_ID[runway]}
         basis={basis}
-        selectedUnit={selected?.runway === runway ? selected.unit : null}
+        res={heatmapRes}
+        onRes={setHeatmapRes}
+        traceState={traceState}
+        xDomain={xDomain}
+        selectedUnit={selectedHere}
         onSelectUnit={(unit) => handleSelect(runway, unit)}
       />
       <SkidProfile
         runway={RUNWAY_BY_ID[runway]}
-        selectedUnit={selected?.runway === runway ? selected.unit : null}
-        lane={profileLanes?.[0] ?? defaultLane}
-        onLane={(lane) => setProfileLanes([lane])}
+        selectedUnit={selectedHere}
+        view={profileView}
+        onView={changeView}
+        lanes={profileLanes ?? [defaultLane]}
+        onLanes={setProfileLanes}
         xDomain={xDomain}
         onXDomain={setXDomain}
         overlays={overlays}
         onOverlays={setOverlays}
         narrow={narrow}
         onSelectUnit={(unit) => handleSelect(runway, unit)}
+        traceState={traceState}
       />
     </>
   );

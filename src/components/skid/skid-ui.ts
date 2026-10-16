@@ -1,3 +1,6 @@
+import { CircleMinus, Eye, OctagonAlert, TriangleAlert, type LucideIcon } from "lucide-react";
+import { type SkidClass } from "@/config/skid";
+import type { Faa320Status } from "@/lib/skid-trace";
 import type { LaneCode, RunwayId, SkidBasis, SkidSurvey } from "@/types/skid";
 
 export interface RunwayMeta {
@@ -18,6 +21,30 @@ export const RUNWAYS: RunwayMeta[] = [
 export const RUNWAY_BY_ID = Object.fromEntries(RUNWAYS.map((r) => [r.id, r])) as Record<RunwayId, RunwayMeta>;
 
 export type MapLanes = "off" | "unit" | "meter";
+export type HeatRes = "unit" | "meter";
+export type ProfileView = "one" | "compare" | "all";
+
+/** The lane at the same distance on the other side of the centre line. */
+export const mirrorLane = (code: LaneCode): LaneCode => `${code[0] === "L" ? "R" : "L"}${code.slice(1)}` as LaneCode;
+
+export const fmtInt = (n: number): string => Math.round(n).toLocaleString("en-US");
+
+/** Short class labels for table chips. */
+export const CLASS_SHORT: Record<SkidClass, string> = {
+  belowMinimum: "< 0.50",
+  belowMaintenance: "< 0.60",
+  aboveMaintenance: "≥ 0.60",
+  newDesign: "≥ 0.82",
+  noData: "—",
+};
+
+// FAA 3-20 flags as shapes and words, not red/yellow/green, so they survive colour-blindness.
+export const FAA_STATUS: Partial<Record<Faa320Status, { label: string; ref: string; Icon: LucideIcon }>> = {
+  immediate: { label: "Immediate", ref: "3-20.c: below minimum and adjacent segments below maintenance planning", Icon: OctagonAlert },
+  extensive: { label: "Extensive", ref: "3-20.b: below maintenance planning over 304.8 m (1,000 ft) or more", Icon: TriangleAlert },
+  belowMinimum: { label: "Below min.", ref: "Below minimum, but 3-20.b and 3-20.c are not met", Icon: CircleMinus },
+  monitor: { label: "Monitor", ref: "3-20.a: below maintenance planning in a single segment", Icon: Eye },
+};
 
 export interface SelectedUnit {
   runway: RunwayId;

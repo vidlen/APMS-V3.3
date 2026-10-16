@@ -1,25 +1,9 @@
 import { useState } from "react";
-import { Check, Copy, CircleMinus, Eye, OctagonAlert, TriangleAlert } from "lucide-react";
-import { classifySkid, SKID_CLASS_META, type SkidClass } from "@/config/skid";
-import { stationOf, unitAtStation, xOf, type Faa320Result, type Faa320Status, type SkidSegment } from "@/lib/skid-trace";
+import { Check, Copy } from "lucide-react";
+import { classifySkid, SKID_CLASS_META } from "@/config/skid";
+import { stationOf, unitAtStation, xOf, type Faa320Result, type SkidSegment } from "@/lib/skid-trace";
 import type { SkidLaneTrace, SkidRunwayTrace } from "@/types/skid";
-import { muText, type RunwayMeta } from "./skid-ui";
-
-const CLASS_SHORT: Record<SkidClass, string> = {
-  belowMinimum: "< 0.50",
-  belowMaintenance: "< 0.60",
-  aboveMaintenance: "≥ 0.60",
-  newDesign: "≥ 0.82",
-  noData: "—",
-};
-
-// Shapes and words, not red/yellow/green, so the status survives colour-blindness.
-const FAA_STATUS: Partial<Record<Faa320Status, { label: string; ref: string; Icon: typeof Eye }>> = {
-  immediate: { label: "Immediate", ref: "3-20.c: below minimum and adjacent segments below maintenance planning", Icon: OctagonAlert },
-  extensive: { label: "Extensive", ref: "3-20.b: below maintenance planning over 304.8 m (1,000 ft) or more", Icon: TriangleAlert },
-  belowMinimum: { label: "Below min.", ref: "Below minimum, but 3-20.b and 3-20.c are not met", Icon: CircleMinus },
-  monitor: { label: "Monitor", ref: "3-20.a: below maintenance planning in a single segment", Icon: Eye },
-};
+import { CLASS_SHORT, FAA_STATUS, muText, type RunwayMeta } from "./skid-ui";
 
 interface Line {
   key: string;
