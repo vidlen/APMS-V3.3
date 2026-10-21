@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Link as LinkIcon } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_SKID_BASIS } from "@/config/skid";
 import { useNarrowViewport } from "@/hooks/useNarrowViewport";
@@ -49,7 +48,6 @@ export default function SkidTab() {
   );
   const [xDomain, setXDomain] = useState<XDomain>(initial.x ?? null);
   const [overlays, setOverlays] = useState<Overlays>(DEFAULT_OVERLAYS);
-  const [linkCopied, setLinkCopied] = useState(false);
 
   // Keep the address bar in step with the view so it can be copied and shared (replaceState: no history
   // entries; history.state is passed through so the router's own state survives).
@@ -65,13 +63,6 @@ export default function SkidTab() {
     });
     window.history.replaceState(window.history.state, "", q ? `?${q}` : window.location.pathname);
   }, [runway, selected, profileLanes, basis, profileView, xDomain]);
-
-  const copyLink = () => {
-    void navigator.clipboard.writeText(window.location.href).then(() => {
-      setLinkCopied(true);
-      window.setTimeout(() => setLinkCopied(false), 1500);
-    });
-  };
 
   // Per-meter readings of the active runway: the profile is always on the page, so this loads on entry.
   const traceState = useSkidTrace(runway);
@@ -176,17 +167,6 @@ export default function SkidTab() {
             <ToggleGroupItem value="meter">Per meter</ToggleGroupItem>
           </ToggleGroup>
         </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button
-          onClick={copyLink}
-          className="h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md text-xs font-medium border border-border text-foreground hover:bg-secondary transition-colors"
-          title="Copy a link to this exact view (runway, unit, lane, basis, zoom)"
-        >
-          {linkCopied ? <Check size={12} /> : <LinkIcon size={12} />} {linkCopied ? "Link copied" : "Copy link"}
-        </button>
-        <p className="text-xs text-muted-foreground">Survey: June 2026 · 65 km/h</p>
       </div>
     </div>
   );
