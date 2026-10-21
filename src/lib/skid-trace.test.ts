@@ -146,9 +146,9 @@ test("L. posisi x dan unit", () => {
   const t = TRACE["06-24"];
   const lane = t.lanes[2];
   for (const i of [0, 1234, lane.mu.length - 1]) assert.equal(indexAtX(t, lane, xOf(t, lane, i)), i);
-  const [x0, x1] = unitXRange(t, 240);
+  const [x0, x1] = unitXRange(t, 61); // unit 240 sebelum penomoran ulang 21 Okt 2026
   const inside = lane.mu.map((_, i) => i).filter((i) => xOf(t, lane, i) > x0 && xOf(t, lane, i) <= x1);
-  assert.ok(inside.every((i) => unitAtStation(t, stationOf(lane, i)) === 240));
+  assert.ok(inside.every((i) => unitAtStation(t, stationOf(lane, i)) === 61));
   assert.ok(xOf(t, lane, 0) > 250 && xOf(t, lane, 0) < 350, "rekaman mulai ±300 m dari ujung 06");
 });
 

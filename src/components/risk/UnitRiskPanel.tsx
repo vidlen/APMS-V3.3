@@ -91,7 +91,7 @@ export function UnitDetail({ r }: { r: UnitRiskResult }) {
     ["PCI", r.pci.toFixed(2)],
     ["R = L × F × C", `${r.riskScore.toFixed(1)} = ${r.likelihood} × ${r.frequency} × ${r.consequence}`],
     ["Zone", ZONE_LABELS[r.zone]],
-    ["Station", `${r.stationKm.toFixed(2)} km`],
+    ["Station (from 24 / 25R)", `${r.stationKm.toFixed(2)} km`],
     ["Coverage", `${r.coveragePct.toFixed(3)}%`],
     ["FODp", `${r.fodIndex.toFixed(1)} / ${r.fodState}`],
   ];
@@ -339,7 +339,7 @@ export default function UnitRiskPanel({
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
                 <TableHead className="px-2">Unit</TableHead>
-                <TableHead className="px-2">Station</TableHead>
+                <TableHead className="px-2" title="km from threshold 24 (RWY 06/24) or 25R (RWY 07L/25R)">Station</TableHead>
                 <TableHead className="px-2">Zone</TableHead>
                 <TableHead className="px-2">PCI</TableHead>
                 <TableHead className="px-2">Coverage</TableHead>

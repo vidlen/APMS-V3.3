@@ -61,16 +61,18 @@ test("C. penomoran unit skid = penomoran berkas unit web", () => {
     }
     assert.ok(worst < 2, `${rw}: centroid meleset ${worst.toFixed(1)} m — berkas unit beda versi/penomoran`);
     const units = RW[rw].units;
-    assert.ok(units[0].centroid_lonlat[0] > units[units.length - 1].centroid_lonlat[0], `${rw}: unit 1 harus di ujung timur`);
+    assert.ok(units[0].centroid_lonlat[0] < units[units.length - 1].centroid_lonlat[0], `${rw}: unit 1 harus di ujung barat (06 / 07L)`);
   }
-  const u1 = (read("runway-07L-25R-units-2026.json") as { features: Feature[] }).features.find((f) => f.properties.sampleUnit === 1);
-  assert.equal(u1?.properties.pci_score, 93, "07L/25R unit 1 di berkas web harus PCI 93 (ujung 25R)");
+  const u360 = (read("runway-07L-25R-units-2026.json") as { features: Feature[] }).features.find((f) => f.properties.sampleUnit === 360);
+  assert.equal(u360?.properties.pci_score, 93, "07L/25R unit 360 di berkas web harus PCI 93 (ujung 25R; unit 1 sebelum penomoran ulang 21 Okt 2026)");
 });
 
 test("D. angka penerimaan", () => {
   const expected = {
-    "06-24": { "152m": [63, 27, 144, 7, 59, 240, "L3.0", 0.3483], "10m": [69, 28, 137, 7, 59, 238, "L3.0", 0.2739] },
-    "07L-25R": { "152m": [18, 33, 251, 0, 58, 301, "L3.0", 0.4466], "10m": [31, 29, 237, 5, 58, 306, "L4.5", 0.3741] },
+    // Nomor unit terendah mengikuti penomoran ulang 21 Okt 2026 (id_baru = N + 1 - id_lama): 06/24 240 -> 61, 238 -> 63;
+    // 07L/25R 301 -> 60, 306 -> 55. Angka lain tidak berubah.
+    "06-24": { "152m": [63, 27, 144, 7, 59, 61, "L3.0", 0.3483], "10m": [69, 28, 137, 7, 59, 63, "L3.0", 0.2739] },
+    "07L-25R": { "152m": [18, 33, 251, 0, 58, 60, "L3.0", 0.4466], "10m": [31, 29, 237, 5, 58, 55, "L4.5", 0.3741] },
   } as const;
   const order: SkidClass[] = ["belowMinimum", "belowMaintenance", "aboveMaintenance", "newDesign", "noData"];
   for (const rw of ["06-24", "07L-25R"] as const) {
@@ -84,8 +86,8 @@ test("D. angka penerimaan", () => {
   }
   const zones = (rw: "06-24" | "07L-25R") => RW[rw].units.filter((u) => classifySkid(u.governing_152m?.mu ?? null) === "belowMinimum").map((u) => u.unit);
   const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
-  assert.deepEqual(zones("06-24"), [...range(54, 91), ...range(227, 251)]);
-  assert.deepEqual(zones("07L-25R"), [...range(48, 51), ...range(295, 308)]);
+  assert.deepEqual(zones("06-24"), [...range(50, 74), ...range(210, 247)]); // 227-251 dan 54-91 sebelum penomoran ulang
+  assert.deepEqual(zones("07L-25R"), [...range(53, 66), ...range(310, 313)]); // 295-308 dan 48-51 sebelum penomoran ulang
 });
 
 test("E. geometri lajur (tanpa ol)", () => {
@@ -97,7 +99,7 @@ test("E. geometri lajur (tanpa ol)", () => {
       const m = [6378137 * (u.centroid_lonlat[0] * Math.PI) / 180, 6378137 * Math.log(Math.tan(Math.PI / 4 + (u.centroid_lonlat[1] * Math.PI) / 360))];
       assert.ok(Math.hypot(c[0] - m[0], c[1] - m[1]) < 0.01, `${rw} unit ${u.unit}: titik tengah harus di centroid`);
     }
-    const u = units[rw === "07L-25R" ? 300 : 150]; // 07L/25R: unit 301
+    const u = units[rw === "07L-25R" ? 59 : 149]; // 07L/25R: unit 60 (301 sebelum penomoran ulang), 06/24: unit 150 (151)
     const s = u.station_mid_m;
     const cl = project(s, 0), l3 = project(s, -3), r3 = project(s, 3), ahead = project(s + 1, 0);
     const scale = Math.hypot(ahead[0] - cl[0], ahead[1] - cl[1]); // meter Mercator per meter tanah

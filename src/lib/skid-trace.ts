@@ -8,7 +8,7 @@ import type { SkidLaneTrace, SkidRunwayTrace } from "../types/skid.ts";
 /** DISTANCE (m dari awal rekaman, seperti di layar alat) untuk bacaan ke-i. */
 export const distanceOf = (t: SkidLaneTrace, i: number): number => t.d_first + i;
 
-/** Stasiun (m dari tepi luar unit 1) untuk bacaan ke-i. Aturan yang sama dengan berkas per unit. */
+/** Stasiun (m dari tepi luar ambang 24 / 25R, bukan dari unit 1) untuk bacaan ke-i. Aturan yang sama dengan berkas per unit. */
 export const stationOf = (t: SkidLaneTrace, i: number): number => t.s0_m - (t.d_first + i);
 
 /** x = jarak dari ujung runway tempat uji dimulai (ujung 06 / 07L), searah uji. Dipakai sebagai sumbu x grafik. */
@@ -21,25 +21,27 @@ export function indexAtX(rt: SkidRunwayTrace, t: SkidLaneTrace, x: number): numb
   return i >= 0 && i < t.mu.length ? i : null;
 }
 
-/** Nomor unit (1..N) yang memuat stasiun, atau null. Batas presisi penuh dari unit_bounds. */
+/** Nomor unit (1..N) yang memuat stasiun, atau null. Batas presisi penuh dari unit_bounds.
+ *  starts_m menurun menurut nomor unit (unit 1 di ambang 06 / 07L = stasiun terbesar), jadi
+ *  unit k memuat starts_m[k-1] <= stasiun < starts_m[k-2] (unit 1: sampai last_end_m). */
 export function unitAtStation(rt: SkidRunwayTrace, station: number): number | null {
   const s = rt.unit_bounds.starts_m;
-  if (station < s[0] || station >= rt.unit_bounds.last_end_m) return null;
+  if (station < s[s.length - 1] || station >= rt.unit_bounds.last_end_m) return null;
   let lo = 0;
   let hi = s.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (s[mid] <= station) lo = mid;
-    else hi = mid - 1;
+  while (lo < hi) { // indeks terkecil dengan starts_m[i] <= stasiun
+    const mid = (lo + hi) >> 1;
+    if (s[mid] <= station) hi = mid;
+    else lo = mid + 1;
   }
   return lo + 1;
 }
 
-/** Rentang x satu unit: [x awal, x akhir). Unit bernomor besar ada di x kecil. */
+/** Rentang x satu unit: [x awal, x akhir). Unit bernomor kecil ada di x kecil (x dari ujung 06 / 07L). */
 export function unitXRange(rt: SkidRunwayTrace, unit: number): [number, number] {
   const s = rt.unit_bounds.starts_m;
   const start = s[unit - 1];
-  const end = unit < s.length ? s[unit] : rt.unit_bounds.last_end_m;
+  const end = unit > 1 ? s[unit - 2] : rt.unit_bounds.last_end_m;
   return [xOfStation(rt, end), xOfStation(rt, start)];
 }
 

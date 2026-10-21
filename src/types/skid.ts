@@ -13,8 +13,8 @@ export interface SkidLaneValue {
 }
 
 export interface SkidUnit {
-  unit: number;                       // penomoran web
-  station_start_m: number;            // dari tepi luar unit 1, sepanjang sumbu runway (2 desimal)
+  unit: number;                       // penomoran web: unit 1 di ujung ambang 06 (RWY 06/24) atau 07L (RWY 07L/25R)
+  station_start_m: number;            // dari tepi luar ambang 24 (06/24) atau 25R (07L/25R), sepanjang sumbu runway (2 desimal); menurun menurut nomor unit
   station_mid_m: number;
   lanes: SkidLaneValue[];             // selalu 8, urutan L6.0 ... R6.0
   lanes_measured: number;             // 0..8
@@ -92,6 +92,7 @@ export interface SkidRunwayTrace {
   survey: SkidSurvey;
   station_rule: string;
   x_rule: string;
+  /** Indeks = nomor unit - 1, jadi starts_m dan window_mid_m menurun (stasiun dari ambang 24 / 25R). */
   unit_bounds: { starts_m: number[]; last_end_m: number; window_mid_m: number[] };
   speed_tolerance_kmh: { target: number; tol: number; ref: string };
   reconciliation: {

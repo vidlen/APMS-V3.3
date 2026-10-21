@@ -46,8 +46,8 @@ interface UnitHeatmapProps {
 }
 
 // One cell per (unit, lane) plus a Governing row. Columns follow the physical
-// layout: west on the left, so the last unit number is the first column and
-// unit 1 the last. Lanes read left-of-centre-line on top (= north on the map).
+// layout: west on the left, so unit 1 (threshold 06 / 07L) is the first column and
+// the last unit number the last. Lanes read left-of-centre-line on top (= north on the map).
 function UnitHeatmap({ data, runway, basis, selectedUnit, onSelectUnit }: UnitHeatmapProps) {
   const n = data.units.length;
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
@@ -55,19 +55,19 @@ function UnitHeatmap({ data, runway, basis, selectedUnit, onSelectUnit }: UnitHe
   const cells = useMemo(() => {
     const out: { key: string; x: number; y: number; fill: string }[] = [];
     for (const u of data.units) {
-      const x = n - u.unit;
+      const x = u.unit - 1;
       u.lanes.forEach((l, r) => out.push({ key: `${u.unit}-${r}`, x, y: r * ROW_H, fill: fillOf(laneMu(l, basis)) }));
       out.push({ key: `${u.unit}-g`, x, y: GOV_Y, fill: fillOf(governingFor(u, basis)?.mu ?? null) });
     }
     return out;
-  }, [data, basis, n]);
+  }, [data, basis]);
 
   const locate = (e: MouseEvent<HTMLDivElement>) => {
     const box = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - box.top;
     const col = Math.min(n - 1, Math.max(0, Math.floor(((e.clientX - box.left) / box.width) * n)));
     const row = y >= 0 && y < LANE_ROWS * ROW_H ? Math.floor(y / ROW_H) : y >= GOV_Y && y < HEIGHT ? LANE_ROWS : null;
-    return { unit: n - col, row };
+    return { unit: col + 1, row };
   };
 
   const describe = (unit: number, row: number | null): string => {
@@ -115,7 +115,7 @@ function UnitHeatmap({ data, runway, basis, selectedUnit, onSelectUnit }: UnitHe
               ))}
               {selectedUnit !== null && (
                 <rect
-                  x={n - selectedUnit}
+                  x={selectedUnit - 1}
                   y={0}
                   width={1}
                   height={HEIGHT}
@@ -132,7 +132,7 @@ function UnitHeatmap({ data, runway, basis, selectedUnit, onSelectUnit }: UnitHe
         {/* Axis: unit numbers every 50, thresholds at both ends. Plain HTML so the text does not stretch with the cells. */}
         <div className="relative h-4 ml-12 text-[10px] font-mono text-muted-foreground">
           {unitMarks.map((u) => (
-            <span key={u} className="absolute top-0.5 -translate-x-1/2" style={{ left: `${((n - u + 0.5) / n) * 100}%` }}>
+            <span key={u} className="absolute top-0.5 -translate-x-1/2" style={{ left: `${((u - 0.5) / n) * 100}%` }}>
               {u}
             </span>
           ))}

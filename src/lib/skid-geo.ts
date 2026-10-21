@@ -37,7 +37,7 @@ export function makeStationProjector(units: readonly SkidUnit[]): StationProject
     const len = Math.hypot(dx, dy);
     const f = (station - a.s) / (b.s - a.s);
     const scale = len / (b.s - a.s); // meter Mercator per meter stasiun di titik ini
-    const ux = -dx / len; // arah uji = menuju unit 1 = stasiun mengecil
+    const ux = -dx / len; // arah uji = menuju ambang 24 / 25R = stasiun mengecil
     const uy = -dy / len;
     const side = -offset_m * scale; // kiri arah uji = (-uy, ux)
     return [a.p[0] + f * dx - uy * side, a.p[1] + f * dy + ux * side];

@@ -59,8 +59,8 @@ export interface UnitDistress {
 
 export interface UnitRiskInput {
   branchId: string; // 'RWY 06-24'
-  unitNumber: number; // 1 to 300
-  stationKm: number;
+  unitNumber: number; // 1 to 300 (1 = threshold 06 / 07L)
+  stationKm: number; // km from threshold 24 (06/24) or 25R (07L/25R); not from unit 1
   zone: Zone;
   areaM2: number; // 586 to 600
   /** true when areaM2 is the 600 m2 design nominal (no polygon geometry was
@@ -95,7 +95,7 @@ export interface UnitRiskInput {
 export interface UnitRiskResult {
   unitNumber: number;
   zone: Zone;
-  stationKm: number;
+  stationKm: number; // km from threshold 24 (06/24) or 25R (07L/25R); not from unit 1
   /** Total ASTM deduct value across every distress record, PATCHING included. */
   tdv: number;
   /** Survey PCI used for likelihood and shown with the B-R3 FODp result. */

@@ -17,7 +17,7 @@
  *   same value, same reasoning: it's the 10m x 60m NOMINAL design area PAVER
  *   itself divides by for density, not each unit's own surveyed polygon
  *   (586-604 m2) - verified against the fixture figures in metode-b-spec_4.md
- *   (unit 16's Raveling High 4.92 m2 only reproduces its published density
+ *   (unit 16's - unit 285 since the 21 Oct 2026 renumbering - Raveling High 4.92 m2 only reproduces its published density
  *   0.820 when divided by a flat 600 m2).
  *
  * QUANTITY UNITS (section 3.2, 4.1):
@@ -113,8 +113,14 @@ function resolveUnitArea(feature: GeoJSONFeature): { areaM2: number; isNominal: 
   return { areaM2: NOMINAL_UNIT_AREA_M2, isNominal: true };
 }
 
-function zoneFor(unitNumber: number): Zone {
-  return unitNumber <= 50 || unitNumber > 250 ? 'ujung' : 'tengah';
+/** 'ujung' = 1-50 and 251-300 on RWY 06/24 (symmetric, so unchanged by the 21 Oct 2026 renumbering).
+ *  RWY 07L/25R kept the same unit ranges as before the renumbering, applied to the old numbering
+ *  (1-50 and 251-360 = 'ujung'); mapped [a, b] -> [361 - b, 361 - a] they are 1-110 and 311-360,
+ *  so every location keeps its zone. That rule is asymmetric and was inherited from 06/24 - see
+ *  docs/penomoran-unit.md; not changed here. */
+function zoneFor(branchId: string, unitNumber: number): Zone {
+  const [low, high] = branchId === '07L/25R' ? [110, 310] : [50, 250];
+  return unitNumber <= low || unitNumber > high ? 'ujung' : 'tengah';
 }
 
 /**
@@ -150,6 +156,9 @@ export function toUnitRiskInputs(
   }
 
   const pciIsReal = isPciReal(branchId);
+  // Station stays measured from the 24 / 25R threshold, as it was before the 21 Oct 2026
+  // renumbering put unit 1 at 06 / 07L, so a location keeps its stationKm (docs/penomoran-unit.md).
+  const eastmostUnit = Math.max(...currentYearFc.features.map((f) => (f.properties as unknown as SampleUnitProperties).sampleUnit));
 
   return currentYearFc.features
     .map((feature) => {
@@ -162,8 +171,8 @@ export function toUnitRiskInputs(
       return {
         branchId,
         unitNumber,
-        stationKm: (unitNumber - 1) * 0.01,
-        zone: zoneFor(unitNumber),
+        stationKm: (eastmostUnit - unitNumber) * 0.01,
+        zone: zoneFor(branchId, unitNumber),
         areaM2,
         areaIsNominal: isNominal,
         surveyYear: year,

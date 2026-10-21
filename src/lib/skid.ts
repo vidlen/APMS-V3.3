@@ -25,9 +25,10 @@ export function summarize(d: SkidRunwayData, basis: SkidBasis): SkidSummary {
   return { counts, measured: d.units.length - counts.noData, lowest };
 }
 
-/** Rentang stasiun [awal, akhir) satu unit dari berkas per unit (2 desimal; cukup untuk menggambar). */
+/** Rentang stasiun [awal, akhir) satu unit dari berkas per unit (2 desimal; cukup untuk menggambar).
+ *  Stasiun menurun menurut nomor unit, jadi tetangga di sisi stasiun besar adalah unit - 1. */
 export function unitStationRange(units: readonly SkidUnit[], unit: number): [number, number] {
   const u = units[unit - 1];
-  const next = units[unit];
-  return [u.station_start_m, next ? next.station_start_m : 2 * u.station_mid_m - u.station_start_m];
+  const prev = units[unit - 2];
+  return [u.station_start_m, prev ? prev.station_start_m : 2 * u.station_mid_m - u.station_start_m];
 }

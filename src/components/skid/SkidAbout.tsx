@@ -63,8 +63,9 @@ export default function SkidAbout({ data }: { data: Record<RunwayId, SkidRunwayD
             <h4 className={h}>How the numbers are made</h4>
             <p className={li}>
               Source: 16 Moventor CSV files (8 lanes × 2 runways), 1 m resolution. Each reading is placed along the axis of the sample-unit polygons with station = s0 −
-              DISTANCE (the test runs toward unit 1); s0 is the median GPS projection of that lane (the 6.0 m lanes of RWY 06/24 have no GPS and use the median of the
-              other lanes). Unit k covers stations [start k, start k+1). Per unit, μ 10 m is the mean of the readings inside the unit, μ 152 m is the mean over the
+              DISTANCE, stations measured from threshold 24 / 25R (the test runs from unit 1 at 06 / 07L toward the last unit); s0 is the median GPS projection of that lane
+              (the 6.0 m lanes of RWY 06/24 have no GPS and use the median of the other lanes). Each unit covers the stations from its own start up to the start of the
+              unit before it, since stations fall as unit numbers rise. Per unit, μ 10 m is the mean of the readings inside the unit, μ 152 m is the mean over the
               152.4 m window centred on the unit (the way FAA assesses), and the governing value is the lowest lane. All unit figures were checked against a live-formula
               workbook.
             </p>

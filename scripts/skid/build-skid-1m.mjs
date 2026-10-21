@@ -25,10 +25,11 @@
  *            2 = usage or input error
  *
  * Rules (identical to the per-unit file; see skid-unit-stations-2026.json):
- *   station_m = s0_m - DISTANCE          (s0_m from lanes[].s0_m; the test runs toward unit 1)
- *   unit k    = starts_m[k] <= station < starts_m[k+1]   (last unit: station < last_end_m),
- *               using the full-precision starts in the station table
- *   mu_152m   = mean of the lane's readings with window_mid_m[k] - 76.2 <= station < window_mid_m[k] + 76.2
+ *   station_m = s0_m - DISTANCE          (s0_m from lanes[].s0_m; stations are measured from threshold 24 / 25R and the
+ *                                         test runs toward it, from unit 1 at 06 / 07L to unit N)
+ *   unit k    = starts_m[k-1] <= station < starts_m[k-2]   (unit 1: station < last_end_m; starts_m falls with the unit
+ *               number since the 21 Oct 2026 renumbering), using the full-precision starts in the station table
+ *   mu_152m   = mean of the lane's readings with window_mid_m[k-1] - 76.2 <= station < window_mid_m[k-1] + 76.2
  *   NAN readings are kept as null: they count in n but not in the means.
  * Stations are compared as integers of 0.1 mm, so a reading that falls exactly on a window edge is
  * handled the same way on every machine. If the per-unit file treated such an edge reading the other
@@ -204,7 +205,8 @@ function lastLE(arr, x) {
   return ans;
 }
 
-/** Local runway frame from the unit centroids of the per-unit file (for the GPS information checks). */
+/** Local runway frame from the unit centroids of the per-unit file (for the GPS information checks).
+ *  `units` must be in station order: units[0] is the unit at station 0 (threshold 24 / 25R). */
 function makeAxis(units) {
   const c1 = units[0].centroid_lonlat;
   const cN = units[units.length - 1].centroid_lonlat;
@@ -212,7 +214,7 @@ function makeAxis(units) {
   const xy = (lon, lat) => [((lon - c1[0]) * Math.PI / 180) * R_EARTH * cosLat, ((lat - c1[1]) * Math.PI / 180) * R_EARTH];
   const pN = xy(cN[0], cN[1]);
   const len = Math.hypot(pN[0], pN[1]);
-  const t = [-pN[0] / len, -pN[1] / len]; // direction of travel (toward unit 1)
+  const t = [-pN[0] / len, -pN[1] / len]; // direction of travel (toward the station-0 end, threshold 24 / 25R)
   const left = [-t[1], t[0]];
   const mid1 = units[0].station_mid_m;
   return (lon, lat) => {
@@ -280,10 +282,13 @@ function buildRunway(rw, perUnit, stationTable, csvPaths, used) {
   }
   if (errors.length) return { errors, warnings, info };
 
-  const startsI = ST.starts_m.map((x) => x * SCALE);
+  // The files list units by number (unit 1 = threshold 06 / 07L = the largest station). The binary search below
+  // needs ascending starts, so everything from here on works on station-ordered copies; the files keep their order.
+  const Us = [...U].reverse();
+  const startsI = [...ST.starts_m].reverse().map((x) => x * SCALE);
   const lastEndI = ST.last_end_m * SCALE;
-  const wmI = ST.window_mid_m.map((x) => Math.round(x * SCALE));
-  const axis = makeAxis(U);
+  const wmI = [...ST.window_mid_m].reverse().map((x) => Math.round(x * SCALE));
+  const axis = makeAxis(Us);
 
   const lanesOut = [];
   const pairs = { checked: 0, n_ok: 0, mu10_ok: 0, mu152_ok: 0, edge_cases: [], max_diff_10m: 0, max_diff_152m: 0 };
@@ -335,7 +340,7 @@ function buildRunway(rw, perUnit, stationTable, csvPaths, used) {
       if (mu[i] !== null) { sum[k] += mu[i]; cnt[k]++; }
     }
 
-    U.forEach((u, k) => {
+    Us.forEach((u, k) => {
       const J = u.lanes[li];
       if (J.lane !== lane.code) { errors.push(`unit ${u.unit}: lanes[${li}] is ${J.lane}, expected ${lane.code}`); return; }
       pairs.checked++;
