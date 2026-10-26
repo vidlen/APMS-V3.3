@@ -10,7 +10,7 @@ export const SKID_THRESHOLDS = { minimum: 0.5, maintenancePlanning: 0.6, newDesi
 export const SKID_THRESHOLDS_95KMH = { minimum: 0.34, maintenancePlanning: 0.47, newDesign: 0.74 } as const;
 
 // Par. 3-20 dan Lampiran 3 par. 1.a(3): penilaian memakai rata-rata segmen 500 ft (152,4 m).
-export const DEFAULT_SKID_BASIS: SkidBasis = "152m"; // KEPUTUSAN — lihat brief §11
+export const DEFAULT_SKID_BASIS: SkidBasis = "10m"; // KEPUTUSAN pemilik (26 Okt 2026): tampilan hanya 10 m, tombol Basis dihapus
 export const SKID_SEGMENT_M = 152.4;
 // Lampiran 3 par. 1.a(5): rata-rata tiap segmen 500 ft harus berulang dalam ±0,06 (2 simpangan baku).
 export const SKID_REPEATABILITY_MU = 0.06;

@@ -1,6 +1,3 @@
-import { CircleMinus, Eye, OctagonAlert, TriangleAlert, type LucideIcon } from "lucide-react";
-import { type SkidClass } from "@/config/skid";
-import type { Faa320Status } from "@/lib/skid-trace";
 import type { LaneCode, RunwayId, SkidBasis, SkidLaneTrace, SkidRunwayTrace, SkidSurvey } from "@/types/skid";
 
 export interface RunwayMeta {
@@ -28,23 +25,6 @@ export type ProfileView = "one" | "compare" | "all";
 export const mirrorLane = (code: LaneCode): LaneCode => `${code[0] === "L" ? "R" : "L"}${code.slice(1)}` as LaneCode;
 
 export const fmtInt = (n: number): string => Math.round(n).toLocaleString("en-US");
-
-/** Short class labels for table chips. */
-export const CLASS_SHORT: Record<SkidClass, string> = {
-  belowMinimum: "< 0.50",
-  belowMaintenance: "< 0.60",
-  aboveMaintenance: "≥ 0.60",
-  newDesign: "≥ 0.82",
-  noData: "—",
-};
-
-// FAA 3-20 flags as shapes and words, not red/yellow/green, so they survive colour-blindness.
-export const FAA_STATUS: Partial<Record<Faa320Status, { label: string; ref: string; Icon: LucideIcon }>> = {
-  immediate: { label: "Immediate", ref: "3-20.c: below minimum and adjacent segments below maintenance planning", Icon: OctagonAlert },
-  extensive: { label: "Extensive", ref: "3-20.b: below maintenance planning over 304.8 m (1,000 ft) or more", Icon: TriangleAlert },
-  belowMinimum: { label: "Below min.", ref: "Below minimum, but 3-20.b and 3-20.c are not met", Icon: CircleMinus },
-  monitor: { label: "Monitor", ref: "3-20.a: below maintenance planning in a single segment", Icon: Eye },
-};
 
 export interface SelectedUnit {
   runway: RunwayId;
@@ -92,16 +72,12 @@ export function laneHeaderLines(rt: SkidRunwayTrace, runway: RunwayMeta, lane: S
 
 export interface Overlays {
   raw: boolean;
-  avg: boolean;
-  segments: boolean;
   thirds: boolean;
   band: boolean;
 }
-export const DEFAULT_OVERLAYS: Overlays = { raw: true, avg: true, segments: true, thirds: false, band: false };
+export const DEFAULT_OVERLAYS: Overlays = { raw: true, thirds: false, band: false };
 export const OVERLAY_LABELS: Record<keyof Overlays, string> = {
   raw: "Raw 1 m",
-  avg: "152 m avg",
-  segments: "152 m segments",
   thirds: "Thirds",
   band: "±0.06 band",
 };

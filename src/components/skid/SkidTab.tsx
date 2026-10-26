@@ -6,7 +6,7 @@ import { useSkidData } from "@/hooks/useSkidData";
 import { useSkidTrace } from "@/hooks/useSkidTrace";
 import { governingFor, summarize } from "@/lib/skid";
 import { parseSkidUrl, skidUrlSearch } from "@/lib/skid-url";
-import type { LaneCode, RunwayId, SkidBasis, SkidRunwayData } from "@/types/skid";
+import type { LaneCode, RunwayId, SkidRunwayData } from "@/types/skid";
 import SkidMap from "./SkidMap";
 import SkidLegend from "./SkidLegend";
 import SkidSummary from "./SkidSummary";
@@ -16,7 +16,6 @@ import SkidRuns from "./SkidRuns";
 import SkidAbout from "./SkidAbout";
 import SkidUnitPanel from "./SkidUnitPanel";
 import {
-  BASIS_LABEL,
   DEFAULT_OVERLAYS,
   RUNWAYS,
   RUNWAY_BY_ID,
@@ -35,7 +34,7 @@ export default function SkidTab() {
   // A shared link (?rw=07L-25R&unit=301&lane=L3.0 ...) sets the first view; read once, validated in skid-url.ts.
   const [initial] = useState(() => parseSkidUrl(window.location.search));
   const [runway, setRunway] = useState<RunwayId>(initial.runway ?? "06-24");
-  const [basis, setBasis] = useState<SkidBasis>(initial.basis ?? DEFAULT_SKID_BASIS);
+  const basis = DEFAULT_SKID_BASIS; // 10 m only; the 152 m (FAA) toggle was dropped
   const [mapLanes, setMapLanes] = useState<MapLanes>("off");
   const [heatmapRes, setHeatmapRes] = useState<HeatRes>("unit");
   const [selected, setSelected] = useState<SelectedUnit | null>(
@@ -147,17 +146,6 @@ export default function SkidTab() {
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-
-        <div className="flex items-center gap-2">
-          <span className="panel-label">Basis</span>
-          <ToggleGroup type="single" variant="outline" size="sm" value={basis} onValueChange={(v) => v && setBasis(v as SkidBasis)}>
-            {(Object.keys(BASIS_LABEL) as SkidBasis[]).map((b) => (
-              <ToggleGroupItem key={b} value={b}>
-                {BASIS_LABEL[b]}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
 
         <div className="flex items-center gap-2">
           <span className="panel-label">Map lanes</span>

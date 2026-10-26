@@ -5,13 +5,11 @@ import { FAA_LINES, FAA_TRACKS, LANE_ORDER, LANE_STYLE, SKID_SPEED } from "@/con
 import { useElementWidth } from "@/hooks/useElementWidth";
 import type { SkidTraceState } from "@/hooks/useSkidTrace";
 import { exportName, profileCsv } from "@/lib/skid-export";
-import { evaluateFaa320, fixedSegments, laneKey, profileRows, thirds as thirdsOf, unitXRange } from "@/lib/skid-trace";
+import { laneKey, profileRows, thirds as thirdsOf, unitXRange } from "@/lib/skid-trace";
 import type { LaneCode } from "@/types/skid";
 import { downloadText, profileSvg, type LegendItem, type SvgPart } from "./skid-svg";
 import SkidProfileChart from "./SkidProfileChart";
 import SkidSpeedStrip from "./SkidSpeedStrip";
-import SkidSegmentTable from "./SkidSegmentTable";
-import SkidSegmentMatrix from "./SkidSegmentMatrix";
 import SkidPrint from "./SkidPrint";
 import {
   OVERLAY_LABELS,
@@ -97,9 +95,7 @@ export default function SkidProfile({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rt, ma, plotWidth, shownCodes.join(), domain[0], domain[1]],
   );
-  const segments = useMemo(() => (view === "one" && lane ? fixedSegments(lane) : []), [view, lane]);
   const thirds = useMemo(() => (view === "one" && lane ? thirdsOf(lane) : []), [view, lane]);
-  const faa = useMemo(() => evaluateFaa320(segments), [segments]);
 
   const clamp = (d: [number, number]): XDomain => [Math.max(0, d[0]), Math.min(last, d[1])];
   const unitZoom = () => {
@@ -132,7 +128,7 @@ export default function SkidProfile({
         ? laneHeaderLines(rt, runway, lane)
         : [
             `${runway.label} · ${view === "all" ? "All lanes" : `Compare ${shown.map((l) => l.lane).join(", ")}`} · Test direction ${rt.survey.direction} · ${surveyDate(rt.survey)} (WIB)`,
-            `${rt.survey.speed_kmh} km/h · ${wetting} · ${[overlays.raw && "thin line = 1 m readings", overlays.avg && "thick line = 152 m moving average", overlays.segments && "steps = 152 m segments"].filter(Boolean).join(" · ") || "no overlay selected"}`,
+            `${rt.survey.speed_kmh} km/h · ${wetting} · ${overlays.raw ? "thin line = 1 m readings" : "no overlay selected"}`,
           ]
       : [];
 
@@ -146,12 +142,6 @@ export default function SkidProfile({
     if (!rt || !card) return;
     const legend: LegendItem[] = [
       ...(overlays.raw ? [{ label: view === "compare" ? "1 m readings (lane colours)" : "1 m readings", color: "#8A8A8A" }] : []),
-      ...(overlays.avg
-        ? view === "compare"
-          ? shown.map((l) => ({ label: `${l.lane} 152 m avg`, color: LANE_STYLE[l.lane].color, dash: LANE_STYLE[l.lane].dash }))
-          : [{ label: "152 m moving average", color: "#26215C" }]
-        : []),
-      ...(overlays.segments ? [{ label: view === "compare" ? "152 m segments (lane colours)" : "152 m segments", color: "#D97706" }] : []),
       ...(view === "one" && overlays.thirds ? [{ label: "Thirds", color: "#0F766E", dash: "7 4" }] : []),
       ...FAA_LINES.map((l) => ({ label: l.label, color: l.color, dash: l.dash })),
     ];
@@ -265,7 +255,7 @@ export default function SkidProfile({
               <ToggleGroupItem
                 key={o}
                 value={o}
-                // Thirds are a single-lane printout item (the 152 m segment steps are drawn in every view).
+                // Thirds are a single-lane printout item.
                 disabled={o === "thirds" && view !== "one"}
               >
                 {OVERLAY_LABELS[o]}
@@ -404,12 +394,6 @@ export default function SkidProfile({
         </div>
       </div>
 
-      {rt && lane &&
-        (view === "one" ? (
-          <SkidSegmentTable rt={rt} lane={lane} runway={runway} segments={segments} thirds={thirds} faa={faa} onZoomTo={(d) => onXDomain(clamp(d))} />
-        ) : (
-          <SkidSegmentMatrix rt={rt} lanes={shown} onZoomTo={(d) => onXDomain(clamp(d))} />
-        ))}
       {printing && <SkidPrint runway={runway} traceState={traceState} onDone={stopPrinting} />}
     </div>
   );

@@ -23,12 +23,12 @@ test("P. URL: baca, validasi, dan tulis kembali tanpa mengubah kunci lain", () =
   assert.deepEqual(parseSkidUrl("?unit=0"), {});
   assert.deepEqual(parseSkidUrl(""), {});
 
-  const s = skidUrlSearch("?tab=skid&other=1", { runway: "07L-25R", unit: 301, lane: "L3.0", basis: "152m", view: "one", x: null });
+  const s = skidUrlSearch("?tab=skid&other=1", { runway: "07L-25R", unit: 301, lane: "L3.0", basis: "10m", view: "one", x: null });
   assert.equal(s, "tab=skid&other=1&rw=07L-25R&unit=301&lane=L3.0", "kunci lain tetap, default tidak ditulis");
-  const back = skidUrlSearch(`?${s}`, { runway: "07L-25R", basis: "10m", view: "compare", lanes: ["L3.0", "R3.0"], x: [1000.4, 1500.6] });
-  assert.equal(back, "tab=skid&other=1&rw=07L-25R&lanes=L3.0,R3.0&basis=10m&view=compare&x=1000-1501", "unit dan lane hilang bila tidak ada");
+  const back = skidUrlSearch(`?${s}`, { runway: "07L-25R", basis: "152m", view: "compare", lanes: ["L3.0", "R3.0"], x: [1000.4, 1500.6] });
+  assert.equal(back, "tab=skid&other=1&rw=07L-25R&lanes=L3.0,R3.0&basis=152m&view=compare&x=1000-1501", "unit dan lane hilang bila tidak ada");
   // ditulis lalu dibaca = sama
-  assert.deepEqual(parseSkidUrl(`?${back}`), { runway: "07L-25R", basis: "10m", view: "compare", lanes: ["L3.0", "R3.0"], x: [1000, 1501] });
+  assert.deepEqual(parseSkidUrl(`?${back}`), { runway: "07L-25R", basis: "152m", view: "compare", lanes: ["L3.0", "R3.0"], x: [1000, 1501] });
 });
 
 test("Q. tanda tiap 100 ft: posisi, kelipatan, dan batas rekaman", () => {
