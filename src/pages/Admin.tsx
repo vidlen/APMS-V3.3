@@ -9,6 +9,7 @@ import SectionEditorTable from "@/components/admin/SectionEditorTable";
 import SampleUnitTable from "@/components/admin/SampleUnitTable";
 import ImportExportPanel from "@/components/admin/ImportExportPanel";
 import RepairLogPanel from "@/components/admin/RepairLogPanel";
+import PublishBar from "@/components/admin/PublishBar";
 
 type AdminTab = "pci" | "risk";
 
@@ -92,6 +93,7 @@ export default function Admin() {
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <div className="max-w-4xl mx-auto space-y-6">
+          <PublishBar />
           <YearManager selectedYear={selectedYear} onSelectYear={handleSelectYear} />
 
           {activeTab === "pci" && (
