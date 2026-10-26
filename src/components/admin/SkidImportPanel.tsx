@@ -18,7 +18,7 @@ const MAX_FILES = 16;
 const MAX_BYTES = 5 * 1024 * 1024;
 const RUNWAY_IDS: RunwayId[] = ["06-24", "07L-25R"];
 const RW_LABEL: Record<RunwayId, string> = { "06-24": "RWY 06/24", "07L-25R": "RWY 07L/25R" };
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const STATIONS = stationTable as unknown as StationTable;
 
 interface Picked { name: string; text: string; runway: RunwayId | null; lane: LaneCode | null }
@@ -105,12 +105,12 @@ export default function SkidImportPanel() {
 
   const addFiles = async (list: FileList | File[]) => {
     const files = [...list].filter((f) => /\.csv$/i.test(f.name));
-    if (files.length < [...list].length) toast.error("Hanya berkas .csv yang diterima (ekstrak .zip dulu).");
+    if (files.length < [...list].length) toast.error("Only .csv files are accepted (extract the .zip first).");
     const room = MAX_FILES - picked.length;
-    if (files.length > room) toast.error(`Maksimal ${MAX_FILES} berkas per proses.`);
+    if (files.length > room) toast.error(`At most ${MAX_FILES} files per run.`);
     const next: Picked[] = [];
     for (const f of files.slice(0, Math.max(0, room))) {
-      if (f.size > MAX_BYTES) { toast.error(`${f.name}: lebih dari 5 MB.`); continue; }
+      if (f.size > MAX_BYTES) { toast.error(`${f.name}: larger than 5 MB.`); continue; }
       if (picked.some((p) => p.name === f.name) || next.some((p) => p.name === f.name)) continue;
       next.push({ name: f.name, text: await f.text(), runway: null, lane: null });
     }
@@ -133,7 +133,7 @@ export default function SkidImportPanel() {
   const runwayWarnings = (rw: RunwayId): Issue[] => {
     const b = build?.runways[rw];
     const out = b?.warnings.filter((i) => !i.file) ?? [];
-    if (existing?.runways[rw]) out.push({ code: "replace", message: `${RW_LABEL[rw]} sudah ada di survei ${existing.label} (${existing.id}); impor akan menggantikannya.` });
+    if (existing?.runways[rw]) out.push({ code: "replace", message: `${RW_LABEL[rw]} already exists in survey ${existing.label} (${existing.id}); the import will replace it.` });
     return out;
   };
   const runwayErrors = (rw: RunwayId): Issue[] => build?.runways[rw]?.errors.filter((i) => !i.file) ?? [];
@@ -148,7 +148,7 @@ export default function SkidImportPanel() {
       s0: { "06-24": s0For("06-24"), "07L-25R": s0For("07L-25R") },
       importedAt: stamp,
     });
-    if (fresh.errors.length) { toast.error("Proses gagal; periksa galat di tabel."); return; }
+    if (fresh.errors.length) { toast.error("Processing failed; check the errors in the table."); return; }
     setProcessed(fresh.runways);
   };
 
@@ -163,15 +163,15 @@ export default function SkidImportPanel() {
         const entry = await uploadSkidRunway(surveyId, b, csvs);
         upsertSkidSurveyRunway(surveyId, label.trim(), rw, entry);
       }
-      toast.success("Tersimpan sebagai draf. Tekan Publish supaya pengunjung melihatnya.");
+      toast.success("Saved as a draft. Press Publish so visitors can see it.");
       setPicked([]); setS0Edits({}); setUseOldS0({}); setIdOverride(null); setLabelOverride(null); setProcessed(null);
     } catch (err) {
       console.error("Skid import save failed", err);
       const message = err instanceof Error ? err.message : "";
       toast.error(
         message.includes("presigned URL") || message.includes("Admin session")
-          ? "Unggahan ditolak. Sesi admin mungkin habis: login ulang lalu coba lagi."
-          : `Gagal menyimpan. ${message}`.trim(),
+          ? "Upload refused. Your admin session may have expired: log in again and retry."
+          : `Save failed. ${message}`.trim(),
       );
     } finally {
       setBusy(false);
@@ -184,14 +184,14 @@ export default function SkidImportPanel() {
   return (
     <div className="panel-surface rounded-lg overflow-hidden">
       <div className="px-4 py-3 border-b border-border">
-        <h2 className="text-sm font-bold text-foreground">Impor CSV Skiddometer</h2>
+        <h2 className="text-sm font-bold text-foreground">Import Skiddometer CSV</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Unggah ekspor Moventor mentah (1–8 lajur per runway). Konversi dilakukan di browser; hasilnya tersimpan sebagai draf sampai Publish ditekan.
+          Upload the raw Moventor exports (1–8 lanes per runway). The conversion runs in the browser; the result is kept as a draft until you press Publish.
         </p>
       </div>
 
       <div className="p-4 space-y-4">
-        {seeds.error && <p className="text-sm text-destructive">Berkas acuan (seed) gagal dimuat: {seeds.error}</p>}
+        {seeds.error && <p className="text-sm text-destructive">The reference (seed) files failed to load: {seeds.error}</p>}
 
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
@@ -200,9 +200,9 @@ export default function SkidImportPanel() {
           className={`rounded-md border border-dashed px-4 py-6 text-center text-sm text-muted-foreground ${drag ? "border-primary bg-secondary" : "border-border"}`}
         >
           <Upload size={16} className="mx-auto mb-1.5" />
-          Seret berkas .csv ke sini, atau{" "}
-          <button className="underline text-foreground" onClick={() => fileInput.current?.click()}>pilih berkas</button>
-          <p className="text-[11px] mt-1">Maksimal {MAX_FILES} berkas, 5 MB per berkas.</p>
+          Drag .csv files here, or{" "}
+          <button className="underline text-foreground" onClick={() => fileInput.current?.click()}>choose files</button>
+          <p className="text-[11px] mt-1">At most {MAX_FILES} files, 5 MB each.</p>
           <input
             ref={fileInput}
             type="file"
@@ -219,11 +219,11 @@ export default function SkidImportPanel() {
               <table className="w-full min-w-[1100px] text-xs tabular-nums">
                 <thead>
                   <tr className="text-[10px] uppercase tracking-[.07em] text-muted-foreground border-b border-border text-left">
-                    <th className={cell}>Berkas</th><th className={cell}>Runway</th><th className={cell}>Lajur</th>
-                    <th className={cell}>Mulai (WIB)</th><th className={`${cell} text-right`}>Baris</th>
-                    <th className={`${cell} text-right`}>μ rata-rata</th><th className={`${cell} text-right`}>Kecepatan</th>
+                    <th className={cell}>File</th><th className={cell}>Runway</th><th className={cell}>Lane</th>
+                    <th className={cell}>Start (WIB)</th><th className={`${cell} text-right`}>Rows</th>
+                    <th className={`${cell} text-right`}>Mean μ</th><th className={`${cell} text-right`}>Speed</th>
                     <th className={`${cell} text-right`}>GPS</th><th className={cell}>s0 (m)</th>
-                    <th className={`${cell} text-right`}>Lateral GPS</th><th className={cell}>Status</th><th />
+                    <th className={`${cell} text-right`}>GPS lateral</th><th className={cell}>Status</th><th />
                   </tr>
                 </thead>
                 <tbody>
@@ -252,7 +252,7 @@ export default function SkidImportPanel() {
                         <td className={`${cell} text-right`}>{st?.rows ?? "—"}</td>
                         <td className={`${cell} text-right`}>{num(st?.meanMu, 4)}</td>
                         <td className={`${cell} text-right whitespace-nowrap`}>
-                          {num(st?.meanSpeed, 2)}{st && st.outsideSpeed > 0 ? ` (${st.outsideSpeed} di luar)` : ""}
+                          {num(st?.meanSpeed, 2)}{st && st.outsideSpeed > 0 ? ` (${st.outsideSpeed} outside)` : ""}
                         </td>
                         <td className={`${cell} text-right`}>{st?.gpsRows ?? "—"}</td>
                         <td className={cell}>
@@ -262,7 +262,7 @@ export default function SkidImportPanel() {
                             className={`${sel} w-[84px] text-right`}
                             value={a?.s0 ?? ""}
                             placeholder="auto"
-                            title={a ? `${a.s0Source ?? ""}${a.s0Auto !== null ? ` · dari GPS: ${a.s0Auto}` : ""}${a.iqr !== null ? ` · sebaran GPS (IQR): ${a.iqr} m` : ""}` : ""}
+                            title={a ? `${a.s0Source ?? ""}${a.s0Auto !== null ? ` · from GPS: ${a.s0Auto}` : ""}${a.iqr !== null ? ` · GPS spread (IQR): ${a.iqr} m` : ""}` : ""}
                             disabled={!rw || !f?.lane}
                             onChange={(e) => {
                               const v = e.target.value === "" ? undefined : Number(e.target.value);
@@ -282,7 +282,7 @@ export default function SkidImportPanel() {
                           )}
                         </td>
                         <td className={cell}>
-                          <button aria-label={`Hapus ${p.name}`} className="p-1 text-muted-foreground hover:text-foreground" onClick={() => remove(p.name)}>
+                          <button aria-label={`Remove ${p.name}`} className="p-1 text-muted-foreground hover:text-foreground" onClick={() => remove(p.name)}>
                             <X size={13} />
                           </button>
                         </td>
@@ -299,9 +299,9 @@ export default function SkidImportPanel() {
                 <IssueList issues={runwayWarnings(rw)} tone="warn" />
                 {old.data?.[rw] && (
                   <p className="text-[11px] text-muted-foreground">
-                    s0 awal diambil dari survei lama.{" "}
+                    Initial s0 taken from the earlier survey.{" "}
                     <button className="underline" onClick={() => { setUseOldS0((u) => ({ ...u, [rw]: false })); setS0Edits((s) => ({ ...s, [rw]: {} })); reset(); }}>
-                      Hitung dari GPS
+                      Compute from GPS
                     </button>
                   </p>
                 )}
@@ -310,9 +310,9 @@ export default function SkidImportPanel() {
 
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-xs space-y-1">
-                <span className="block text-muted-foreground">Survei tujuan</span>
+                <span className="block text-muted-foreground">Target survey</span>
                 <select className={`${sel} h-8 w-[200px]`} value={existing ? surveyId : ""} onChange={(e) => { setIdOverride(e.target.value || null); setLabelOverride(null); reset(); }}>
-                  <option value="">Baru: {autoId || "—"}</option>
+                  <option value="">New: {autoId || "—"}</option>
                   {surveys.map((s) => <option key={s.id} value={s.id}>{s.label} ({s.id})</option>)}
                 </select>
               </label>
@@ -325,10 +325,10 @@ export default function SkidImportPanel() {
                 <input className={`${sel} h-8 w-[140px]`} value={label} onChange={(e) => { setLabelOverride(e.target.value); reset(); }} />
               </label>
               <Button size="sm" onClick={process} disabled={hasErrors || busy}>
-                <Play size={13} /> Proses
+                <Play size={13} /> Process
               </Button>
             </div>
-            {!idValid && surveyId !== "" && <p className="text-[11px] text-destructive">Id hanya boleh huruf kecil, angka, dan tanda hubung (maks. 40).</p>}
+            {!idValid && surveyId !== "" && <p className="text-[11px] text-destructive">The id may only contain lowercase letters, digits and hyphens (max. 40).</p>}
           </>
         )}
 
@@ -345,19 +345,19 @@ export default function SkidImportPanel() {
                 <div key={rw} className="text-xs space-y-1">
                   <h3 className="font-bold text-foreground">{RW_LABEL[rw]}</h3>
                   <p className="text-muted-foreground">
-                    Cakupan: unit {u.coverage.first_unit}–{u.coverage.last_unit} ({u.coverage.n_units} dari {u.coverage.n_units_total}) ·{" "}
+                    Coverage: units {u.coverage.first_unit}–{u.coverage.last_unit} ({u.coverage.n_units} of {u.coverage.n_units_total}) ·{" "}
                     {(["belowMinimum", "belowMaintenance", "aboveMaintenance", "newDesign"] as const).map((c) => (
                       <span key={c} className="mr-2 inline-flex items-center gap-1">
                         <span className="inline-block w-2.5 h-2.5 rounded-sm border border-border" style={{ backgroundColor: SKID_CLASS_META[c].color }} />
                         {s.counts[c]}
                       </span>
                     ))}
-                    · terendah:{" "}
+                    · lowest:{" "}
                     {s.lowest ? `unit ${s.lowest.unit}, ${s.lowest.lane}, μ ${s.lowest.mu.toFixed(4)}` : "—"}
                   </p>
                   {o && (
                     <p className="text-muted-foreground">
-                      Dibanding survei lama: {changed} unit berubah kelas · selisih s0:{" "}
+                      Compared with the earlier survey: {changed} units changed class · s0 difference:{" "}
                       {u.lanes.filter((l) => l.measured !== false).map((l) => {
                         const ol = o.lanes.find((x) => x.code === l.code);
                         return `${l.code} ${ol?.s0_m != null && l.s0_m != null ? (l.s0_m - ol.s0_m).toFixed(1) : "—"}`;
@@ -368,7 +368,7 @@ export default function SkidImportPanel() {
               );
             })}
             <Button size="sm" onClick={save} disabled={busy}>
-              {busy ? <Spinner /> : <Save size={13} />} {busy ? "Menyimpan…" : "Simpan ke draf"}
+              {busy ? <Spinner /> : <Save size={13} />} {busy ? "Saving…" : "Save to draft"}
             </Button>
           </div>
         )}

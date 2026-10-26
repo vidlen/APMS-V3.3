@@ -27,7 +27,7 @@ export default function SkidSurveyList() {
   return (
     <div className="panel-surface rounded-lg overflow-hidden">
       <div className="px-4 py-3 border-b border-border">
-        <h2 className="text-sm font-bold text-foreground">Survei skid resistance</h2>
+        <h2 className="text-sm font-bold text-foreground">Skid resistance surveys</h2>
       </div>
       <div className="overflow-x-auto custom-scrollbar">
         <table className="w-full min-w-[640px] text-xs">
@@ -35,8 +35,8 @@ export default function SkidSurveyList() {
             <tr className="text-[10px] uppercase tracking-[.07em] text-muted-foreground border-b border-border text-left">
               <th className="px-3 py-2">Label</th>
               <th className="px-3 py-2">Id</th>
-              <th className="px-3 py-2">Runway (tanggal WIB, lajur terukur)</th>
-              <th className="px-3 py-2">Sumber</th>
+              <th className="px-3 py-2">Runways (WIB date, measured lanes)</th>
+              <th className="px-3 py-2">Source</th>
               <th />
             </tr>
           </thead>
@@ -56,32 +56,32 @@ export default function SkidSurveyList() {
                       const lanes = r.source === "admin" ? manifest?.runways[rw]?.lanes.length : 8;
                       return (
                         <div key={rw}>
-                          {RW_LABEL[rw]} · {r.startWib.slice(0, 10)} · {lanes} lajur
+                          {RW_LABEL[rw]} · {r.startWib.slice(0, 10)} · {lanes} lanes
                         </div>
                       );
                     })}
                   </td>
-                  <td className="px-3 py-2">{fromAdmin ? "Unggahan admin" : "Bawaan"}</td>
+                  <td className="px-3 py-2">{fromAdmin ? "Admin upload" : "Built-in"}</td>
                   <td className="px-3 py-2 text-right">
                     {inManifest && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <button className="p-1 text-muted-foreground hover:text-destructive" aria-label={`${isSeedId ? "Kembalikan" : "Hapus"} survei ${s.label}`}>
+                          <button className="p-1 text-muted-foreground hover:text-destructive" aria-label={`${isSeedId ? "Restore" : "Delete"} survey ${s.label}`}>
                             <Trash2 size={14} />
                           </button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>{isSeedId ? "Kembalikan ke data bawaan?" : `Hapus survei ${s.label}?`}</AlertDialogTitle>
+                            <AlertDialogTitle>{isSeedId ? "Restore the built-in data?" : `Delete survey ${s.label}?`}</AlertDialogTitle>
                             <AlertDialogDescription>
                               {isSeedId
-                                ? "Runway hasil unggahan dibuang dari draf dan survei kembali memakai data bawaan Juni 2026."
-                                : "Survei dibuang dari draf. Berkasnya tetap ada di Blob. Pengunjung baru berhenti melihatnya setelah Publish."}
+                                ? "The uploaded runways are removed from the draft and the survey goes back to the built-in June 2026 data."
+                                : "The survey is removed from the draft. Its files stay in Blob. Visitors stop seeing it only after Publish."}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => removeSkidSurvey(s.id)}>{isSeedId ? "Kembalikan" : "Hapus"}</AlertDialogAction>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => removeSkidSurvey(s.id)}>{isSeedId ? "Restore" : "Delete"}</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>

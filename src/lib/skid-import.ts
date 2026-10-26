@@ -130,7 +130,7 @@ export function parseMoventorCsv(text: string): ParsedMoventor {
     const c = splitCsvLine(l, d);
     if (/^DISTANCE\b/i.test(c[0] ?? "") && c.some((x) => /^FRICTION\b/i.test(x))) { h = i; delim = d; break; }
   }
-  if (h < 0) throw importError("no-header", "Bukan ekspor Moventor: baris judul DISTANCE/FRICTION tidak ditemukan.");
+  if (h < 0) throw importError("no-header", "Not a Moventor export: the DISTANCE/FRICTION header row was not found.");
   const decimalComma = delim === ";";
 
   const meta: ParsedMoventor["meta"] = [];
@@ -146,7 +146,7 @@ export function parseMoventorCsv(text: string): ParsedMoventor {
   const col = (re: RegExp) => head.findIndex((x) => re.test(x));
   const iD = col(/^DISTANCE/), iF = col(/^FRICTION/), iS = col(/^SPEED/), iT = col(/^TIME/);
   const iP = col(/^POSITION/), iM = col(/^MARKER/), iLat = col(/^LAT/), iLon = col(/^LON/);
-  if (iS < 0) throw importError("no-header", "Bukan ekspor Moventor: kolom SPEED tidak ditemukan.");
+  if (iS < 0) throw importError("no-header", "Not a Moventor export: the SPEED column was not found.");
 
   const rows: MoventorRow[] = [];
   let endOfData = false;
@@ -157,7 +157,7 @@ export function parseMoventorCsv(text: string): ParsedMoventor {
     const c = splitCsvLine(l, delim);
     if ((c[iD] ?? "") === "") continue;
     const d = toNumber(c[iD], decimalComma);
-    if (d === null) throw importError("distance-gap", `DISTANCE tidak berurutan mulai baris ${i + 1}.`);
+    if (d === null) throw importError("distance-gap", `DISTANCE is not sequential from line ${i + 1}.`);
     let lat: number | null = null, lon: number | null = null;
     if (iP >= 0) {
       const p = POSITION_RE.exec(c[iP] ?? "");
@@ -281,37 +281,37 @@ export function inspectFile(name: string, text: string, override: { runway?: Run
   out.parsed = p;
   const st = (out.stats = fileStats(p));
 
-  if (p.rows.length === 0) { err("empty", "Berkas tidak berisi data."); return out; }
-  if (!p.startUtc) err("no-date", "Tanggal/jam di header (DATE, TIME) tidak terbaca.");
+  if (p.rows.length === 0) { err("empty", "The file contains no data."); return out; }
+  if (!p.startUtc) err("no-date", "The header date/time (DATE, TIME) could not be read.");
   const bad = p.rows.findIndex((r, i) => Math.abs(r.d - (i + 1)) > 1e-9);
-  if (bad >= 0) err("distance-gap", `DISTANCE tidak berurutan mulai baris ${bad + 1}.`);
-  if (p.resolutionM !== null && p.resolutionM !== 1) err("resolution", `Resolusi ${p.resolutionM} m; hanya 1 m yang didukung.`);
+  if (bad >= 0) err("distance-gap", `DISTANCE is not sequential from row ${bad + 1}.`);
+  if (p.resolutionM !== null && p.resolutionM !== 1) err("resolution", `Resolution ${p.resolutionM} m; only 1 m is supported.`);
 
   // runway: nama berkas (atau koreksi admin) dicocokkan dengan header
   const dir = runwayFromDirection(p.runwayDirection);
   const surf = p.surfaceName ? runwayFromName(p.surfaceName) : null;
-  if (dir === "reverse") err("reverse-direction", "Arah uji 24/25R belum didukung.");
-  if (!out.runway) err("runway-unknown", "Runway tidak terbaca dari nama berkas. Pilih manual.");
+  if (dir === "reverse") err("reverse-direction", "Test direction 24/25R is not supported yet.");
+  if (!out.runway) err("runway-unknown", "Runway could not be read from the file name. Choose it manually.");
   else if (dir !== "reverse") {
     const claims: [string, RunwayId | null][] = [["header RUNWAY DIRECTION", dir], ["header SURFACE NAME", surf]];
-    if (!override.runway) claims.unshift(["nama berkas", detected.runway]);
+    if (!override.runway) claims.unshift(["the file name", detected.runway]);
     const seen = claims.filter((c): c is [string, RunwayId] => c[1] !== null && c[1] !== out.runway);
-    if (seen.length) err("runway-mismatch", `Runway dipilih ${out.runway}, tetapi ${seen.map(([k, v]) => `${k} menyebut ${v}`).join(", ")}.`);
+    if (seen.length) err("runway-mismatch", `Runway is ${out.runway}, but ${seen.map(([k, v]) => `${k} says ${v}`).join(", ")}.`);
   }
-  if (!out.lane) err("lane-unknown", "Lajur tidak terbaca dari nama berkas. Pilih manual.");
+  if (!out.lane) err("lane-unknown", "Lane could not be read from the file name. Choose it manually.");
 
-  if (!p.endOfData) warn("no-end-marker", 'Tidak ada baris "END OF DATA"; dibaca sampai akhir berkas.');
+  if (!p.endOfData) warn("no-end-marker", 'No "END OF DATA" line; read to the end of the file.');
   const len = toNumber(metaValue(p.meta, "LENGTH"));
-  if (len !== null && Math.round(len) !== p.rows.length) warn("length-mismatch", `LENGTH header ${len}, jumlah baris ${p.rows.length}.`);
+  if (len !== null && Math.round(len) !== p.rows.length) warn("length-mismatch", `Header LENGTH is ${len} but the file has ${p.rows.length} rows.`);
   const statF = metaValue(p.meta, "FRICTION", "STATISTICS");
   if (statF !== null && toNumber(statF, p.delimiter === ";") !== null && st.meanMu !== null) {
     const tol = 0.5 * 10 ** -decimalsOf(statF) + 1e-9;
     if (Math.abs((toNumber(statF, p.delimiter === ";") as number) - st.meanMu) > tol)
-      warn("stat-mismatch", `FRICTION header ${statF} berbeda dari rata-rata baris ${round(st.meanMu, 5)}.`);
+      warn("stat-mismatch", `Header FRICTION ${statF} differs from the mean of the rows ${round(st.meanMu, 5)}.`);
   }
-  if (st.outsideSpeed > 0) warn("speed", `${st.outsideSpeed} baris di luar ${SKID_SPEED.target} ± ${SKID_SPEED.tol} km/j.`);
-  if (p.wetting !== null && p.wetting.trim().toLowerCase() !== "on") warn("wetting-off", `WETTING "${p.wetting}": uji kering tidak sebanding dengan ambang FAA.`);
-  if (p.delimiter === ";") warn("semicolon", "Pemisah ';' — berkas kemungkinan pernah disimpan ulang di Excel.");
+  if (st.outsideSpeed > 0) warn("speed", `${st.outsideSpeed} rows outside ${SKID_SPEED.target} ± ${SKID_SPEED.tol} km/h.`);
+  if (p.wetting !== null && p.wetting.trim().toLowerCase() !== "on") warn("wetting-off", `WETTING "${p.wetting}": a dry test is not comparable with the FAA thresholds.`);
+  if (p.delimiter === ";") warn("semicolon", "Delimiter ';' — the file was probably re-saved in Excel.");
   return out;
 }
 
@@ -444,7 +444,7 @@ export function buildRunway(files: InspectedFile[], runway: RunwayId, seed: Skid
   for (const [lane, fs] of byLane) {
     if (fs.length > 1) {
       const names = fs.map((f) => f.name).join(", ");
-      for (const f of fs) errors.push({ code: "duplicate-lane", message: `${lane} RWY ${runway} ada di dua berkas: ${names}.`, file: f.name });
+      for (const f of fs) errors.push({ code: "duplicate-lane", message: `${lane} of RWY ${runway} is in two files: ${names}.`, file: f.name });
     }
   }
   if (errors.length) return out;
@@ -464,7 +464,7 @@ export function buildRunway(files: InspectedFile[], runway: RunwayId, seed: Skid
       let sxy = 0, sxx = 0;
       proj.forEach((q, i) => { sxy += (q.d - mx) * (v[i] - my); sxx += (q.d - mx) ** 2; });
       a.slope = sxx > 0 ? sxy / sxx : 0;
-      if (Math.abs(a.slope) >= GPS_SLOPE_MAX) errors.push({ code: "gps-slope", message: "Jarak (DISTANCE) tidak cocok dengan GPS.", file: f.name });
+      if (Math.abs(a.slope) >= GPS_SLOPE_MAX) errors.push({ code: "gps-slope", message: "DISTANCE does not match the GPS positions.", file: f.name });
     }
     return a;
   });
@@ -477,7 +477,7 @@ export function buildRunway(files: InspectedFile[], runway: RunwayId, seed: Skid
     if (manual !== undefined && Number.isFinite(manual)) { l.s0 = manual; l.s0Source = "diisi manual"; }
     else if (l.s0Auto !== null) { l.s0 = l.s0Auto; l.s0Source = "median proyeksi GPS"; }
     else if (fallbackS0 !== null) { l.s0 = fallbackS0; l.s0Source = "median s0 lajur lain (tanpa GPS)"; }
-    else errors.push({ code: "no-gps-runway", message: "Tidak ada lajur ber-GPS; posisi tidak bisa ditentukan.", file: l.file });
+    else errors.push({ code: "no-gps-runway", message: "No lane has GPS; the position cannot be determined.", file: l.file });
   }
   out.lanes = lanes;
   const sources = new Set(lanes.map((l) => (l.s0Source === "diisi manual" ? "manual" : "gps")));
@@ -490,7 +490,7 @@ export function buildRunway(files: InspectedFile[], runway: RunwayId, seed: Skid
     for (const l of withGps) {
       l.lateralResidual = round((l.lateral as number) - laneOffset(l.lane) - shift, 2);
       if (Math.abs(l.lateralResidual as number) > LATERAL_MAX_M)
-        warnings.push({ code: "lateral", message: `${l.lane}: posisi lateral GPS ${l.lateralResidual} m dari pola lajur lain; periksa label lajur.`, file: l.file });
+        warnings.push({ code: "lateral", message: `${l.lane}: GPS lateral position is ${l.lateralResidual} m off the pattern of the other lanes; check the lane label.`, file: l.file });
     }
   }
   if (errors.length) return out;
@@ -498,19 +498,19 @@ export function buildRunway(files: InspectedFile[], runway: RunwayId, seed: Skid
   // peringatan tingkat runway
   if (ok.length < 8) {
     const have = LANE_ORDER.filter((c) => byLane.has(c));
-    warnings.push({ code: "partial-lanes", message: `RWY ${runway}: hanya ${ok.length} dari 8 lajur (${have.join(", ")}). Nilai penentu (governing) hanya dari lajur terukur.` });
+    warnings.push({ code: "partial-lanes", message: `RWY ${runway}: only ${ok.length} of 8 lanes (${have.join(", ")}). The governing value comes from the measured lanes only.` });
   }
   if (new Set(ok.map((f) => f.parsed.rows.length)).size > 1)
-    warnings.push({ code: "lane-length", message: `RWY ${runway}: jumlah baris antarlajur berbeda (${ok.map((f) => `${f.lane} ${f.parsed.rows.length}`).join(", ")}).` });
+    warnings.push({ code: "lane-length", message: `RWY ${runway}: row counts differ between lanes (${ok.map((f) => `${f.lane} ${f.parsed.rows.length}`).join(", ")}).` });
   const starts = ok.map((f) => Date.parse(f.parsed.startUtc));
   if ((Math.max(...starts) - Math.min(...starts)) / 3600_000 > SPAN_MAX_H)
-    warnings.push({ code: "span", message: `RWY ${runway}: waktu mulai lajur pertama dan terakhir berselisih lebih dari ${SPAN_MAX_H} jam.` });
+    warnings.push({ code: "span", message: `RWY ${runway}: the first and last lane start more than ${SPAN_MAX_H} hours apart.` });
 
   // ---- hitung unit
   const ST = stations.runways[runway];
   const S = stationIdx(ST);
   if (seed.units.length !== S.n) {
-    errors.push({ code: "config", message: `Tabel stasiun (${S.n} unit) tidak cocok dengan berkas seed (${seed.units.length} unit).` });
+    errors.push({ code: "config", message: `The station table (${S.n} units) does not match the seed file (${seed.units.length} units).` });
     return out;
   }
   const N = S.n;
@@ -582,7 +582,7 @@ export function buildRunway(files: InspectedFile[], runway: RunwayId, seed: Skid
     source: { kind: "admin-import", imported_at: importedAt, ...(opts.appVersion ? { app_version: opts.appVersion } : {}) },
   };
   if (covered.length === 0) {
-    errors.push({ code: "no-coverage", message: `RWY ${runway}: tidak ada bacaan yang jatuh di dalam unit (periksa s0).` });
+    errors.push({ code: "no-coverage", message: `RWY ${runway}: no reading falls inside a unit (check s0).` });
     return out;
   }
 
@@ -635,7 +635,7 @@ export function buildRunway(files: InspectedFile[], runway: RunwayId, seed: Skid
     if (Number.isFinite(d152)) rec.max_abs_diff_152m = Math.max(rec.max_abs_diff_152m, d152);
   }));
   if (rec.n_ok !== rec.unit_lane_pairs || rec.mu_10m_ok !== rec.unit_lane_pairs || rec.mu_152m_ok !== rec.unit_lane_pairs) {
-    errors.push({ code: "reconcile", message: "Rekonsiliasi berkas per unit dan per meter gagal (bug, bukan masalah data)." });
+    errors.push({ code: "reconcile", message: "Reconciling the per-unit and per-meter files failed (a bug, not a data problem)." });
     return out;
   }
   rec.max_abs_diff_10m = round(rec.max_abs_diff_10m, 6) as number;
