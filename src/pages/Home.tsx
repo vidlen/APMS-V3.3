@@ -34,13 +34,13 @@ type WorkspaceTab = "pci" | "risk" | "skid";
 
 const WORKSPACE_TABS: { id: WorkspaceTab; label: string; shortLabel: string; placeholderCaption?: string }[] = [
   { id: "pci", label: "Pavement Condition Index (PCI)", shortLabel: "PCI" },
+  { id: "skid", label: "Skid Resistance", shortLabel: "Skid" },
   {
     id: "risk",
     label: "Risk Management",
     shortLabel: "Risk",
     placeholderCaption: "No PCI survey data loaded for this year yet",
   },
-  { id: "skid", label: "Skid Resistance", shortLabel: "Skid" },
 ];
 
 function isNarrowViewport() {
