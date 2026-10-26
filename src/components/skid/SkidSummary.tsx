@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { SKID_CLASS_META, type SkidClass } from "@/config/skid";
 import { summarize } from "@/lib/skid";
 import type { SkidBasis, SkidRunwayData } from "@/types/skid";
-import { BASIS_LABEL, muText, surveyWindow } from "./skid-ui";
+import { BASIS_LABEL, muText } from "./skid-ui";
 
 const CLASSES: SkidClass[] = ["belowMinimum", "belowMaintenance", "aboveMaintenance", "newDesign"];
 
@@ -62,11 +62,6 @@ export default function SkidSummary({ data, basis, onSelectUnit }: SkidSummaryPr
           ) : (
             <span className="text-sm text-muted-foreground">—</span>
           )}
-        </div>
-
-        <div className="flex flex-col gap-1 pl-4">
-          <span className="text-[9px] tracking-[.07em] uppercase text-muted-foreground">Survey</span>
-          <span className="text-sm text-foreground">{surveyWindow(data.survey)}</span>
         </div>
       </div>
     </div>
