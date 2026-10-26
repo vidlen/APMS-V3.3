@@ -171,6 +171,26 @@ test("T7. galat dan peringatan", () => {
   assert.ok(codes(inspectFile(FIXTURE, CSV.replace(/^1,0\.8695,/m, "1,0.1695,")).warnings).includes("stat-mismatch"));
 });
 
+test("T9. berkas disimpan ulang Excel dengan seluruh isi di kolom A", () => {
+  // Tiruan Excel berlocale Indonesia: baca (kutip pembuka sel dibuang), lalu simpan dengan pemisah ';'
+  // (sel yang memuat kutip dibungkus dan kutipnya digandakan). Tiruan ini identik byte-per-byte dengan
+  // berkas nyata yang gagal dibaca pada 26 Okt 2026.
+  const excelColumnA = (l: string) => {
+    const cell = l.replace(/^"([^"]*)"/, "$1");
+    return cell.includes('"') ? `"${cell.replaceAll('"', '""')}"` : cell;
+  };
+  const wrapped = CSV.replace(/\r/g, "").split("\n").map(excelColumnA).join("\r\n");
+  assert.match(wrapped, /^"DISTANCE,FRICTION,""SPEED \(km\/h\)""/m);
+  const w = inspectFile(FIXTURE, wrapped), ref = inspectFile(FIXTURE, CSV);
+  assert.deepEqual(w.errors, []);
+  assert.ok(codes(w.warnings).includes("excel-wrapped"));
+  assert.ok(!codes(ref.warnings).includes("excel-wrapped"));
+  assert.deepEqual(w.parsed!.meta, ref.parsed!.meta);
+  assert.equal(w.parsed!.startUtc, ref.parsed!.startUtc);
+  assert.deepEqual(w.parsed!.rows, ref.parsed!.rows);
+  assert.deepEqual(w.stats, ref.stats);
+});
+
 test("T8. end_utc melewati tengah malam", () => {
   const text = CSV.split(/\r?\n/)
     .map((l) => (/^TIME,/.test(l) ? "TIME,23:59:00" : /^2400,/.test(l) ? l.replace(/,\d\d:\d\d:\d\d,/, ",00:01:30,") : l))

@@ -59,6 +59,7 @@ export interface ParsedMoventor {
   rows: MoventorRow[];
   endOfData: boolean;
   delimiter: "," | ";";
+  wrappedColumnA: boolean; // berkas disimpan ulang Excel dengan seluruh isi di kolom A (lihat unwrapExcelColumnA)
   startUtc: string; // ISO dari DATE + TIME + TIME ZONE header; "" kalau tidak terbaca
   runwayDirection: string | null;
   surfaceName: string | null;
@@ -119,9 +120,28 @@ function headerStartUtc(meta: ParsedMoventor["meta"]): string {
   return isoUtc(local - offMin * 60_000);
 }
 
+/**
+ * Excel berlocale Indonesia (pemisah daftar ';') membuka CSV berkoma dengan seluruh isi baris di kolom A.
+ * Saat disimpan ulang, setiap baris yang memuat tanda kutip dibungkus "..." dan kutip di dalamnya digandakan:
+ *   DISTANCE,FRICTION,"SPEED (km/h)",...  ->  "DISTANCE,FRICTION,""SPEED (km/h)"",..."
+ * Fungsi ini membuka satu lapis bungkus itu. Hanya berlaku kalau SELURUH baris adalah satu sel berkutip.
+ */
+export function unwrapExcelColumnA(line: string): string | null {
+  if (line.length < 2 || line[0] !== '"' || line[line.length - 1] !== '"') return null;
+  const inner = line.slice(1, -1);
+  if (inner.replace(/""/g, "").includes('"')) return null; // ada kutip tunggal di tengah -> lebih dari satu sel
+  return inner.replace(/""/g, '"');
+}
+
 /** Membaca satu ekspor Moventor. Melempar galat ber-`code` kalau tata letak tidak dikenali. */
 export function parseMoventorCsv(text: string): ParsedMoventor {
-  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  let wrappedColumnA = false;
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).map((l) => {
+    const u = unwrapExcelColumnA(l);
+    if (u === null) return l;
+    if (/[,;"]/.test(u)) wrappedColumnA = true; // '"MOVENTOR ... REPORT"' asli tidak dihitung
+    return u;
+  });
   let h = -1;
   let delim: "," | ";" = ",";
   for (let i = 0; i < lines.length; i++) {
@@ -172,7 +192,7 @@ export function parseMoventorCsv(text: string): ParsedMoventor {
     });
   }
   return {
-    meta, rows, endOfData, delimiter: delim,
+    meta, rows, endOfData, delimiter: delim, wrappedColumnA,
     startUtc: headerStartUtc(meta),
     runwayDirection: metaValue(meta, "RUNWAY DIRECTION"),
     surfaceName: metaValue(meta, "NAME", "SURFACE"),
@@ -312,6 +332,7 @@ export function inspectFile(name: string, text: string, override: { runway?: Run
   if (st.outsideSpeed > 0) warn("speed", `${st.outsideSpeed} rows outside ${SKID_SPEED.target} ± ${SKID_SPEED.tol} km/h.`);
   if (p.wetting !== null && p.wetting.trim().toLowerCase() !== "on") warn("wetting-off", `WETTING "${p.wetting}": a dry test is not comparable with the FAA thresholds.`);
   if (p.delimiter === ";") warn("semicolon", "Delimiter ';' — the file was probably re-saved in Excel.");
+  if (p.wrappedColumnA) warn("excel-wrapped", "Every line was wrapped in quotes — the file was re-saved in Excel with all data in column A. Read after unwrapping.");
   return out;
 }
 
