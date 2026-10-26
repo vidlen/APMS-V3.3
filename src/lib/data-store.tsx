@@ -17,6 +17,7 @@ import {
   loadOverrides,
   saveOverrides,
   clearOverridesStorage,
+  hasStoredOverrides,
   emptyOverrides,
   mergeSectionRiskMeta,
   mergeSectionInventory,
@@ -25,6 +26,7 @@ import {
   type SectionInventoryOverride,
 } from "@/lib/data-overrides";
 import { validateRepairLog, type RepairLogRecord } from "@/lib/repair-log";
+import { fetchPublishedOverrides, publishOverrides } from "@/lib/published-overrides";
 
 const SEED_REPAIR_LOG_URL = "/data/repair-log-2025.json";
 
@@ -230,27 +232,87 @@ interface DataContextValue {
   /** Clears an admin-imported log, reverting to the seed. Narrower than
    *  resetDrafts, which discards every override across every year. */
   resetRepairLogToSeed: () => void;
+  /** Discards this browser's unpublished draft and returns to the published version. */
   resetDrafts: () => void;
+  /** True while this browser holds edits that have not been published yet. */
+  hasDraft: boolean;
+  /** State of the published (Vercel Blob) version: still loading, loaded, or unreachable. */
+  publishedStatus: PublishedStatus;
+  /** Uploads the current overrides as the version every visitor sees. */
+  publish: () => Promise<void>;
 }
+
+export type PublishedStatus = "loading" | "ready" | "error";
 
 const DataContext = createContext<DataContextValue | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  // Two layers: the PUBLISHED overrides (from Vercel Blob, shared by every
+  // visitor) and this browser's DRAFT (localStorage, admin only). A draft,
+  // when present, is a complete copy - it started from the published
+  // version - so it simply replaces it until it is published or discarded.
+  const [hasDraft, setHasDraft] = useState<boolean>(() => hasStoredOverrides());
   const [overrides, setOverrides] = useState<DataOverrides>(() => loadOverrides());
-  const isFirstRender = useRef(true);
+  const [published, setPublished] = useState<DataOverrides | null>(null);
+  const [publishedStatus, setPublishedStatus] = useState<PublishedStatus>("loading");
+
+  // Mirrors of the latest state for async callbacks (updated after commit).
+  const hasDraftRef = useRef(hasDraft);
+  const overridesRef = useRef(overrides);
+  useEffect(() => {
+    hasDraftRef.current = hasDraft;
+    overridesRef.current = overrides;
+  }, [hasDraft, overrides]);
+
+  // Load the published version once. Without a draft it becomes what this
+  // browser shows; with a draft it is kept aside for "discard draft".
+  useEffect(() => {
+    let cancelled = false;
+    fetchPublishedOverrides()
+      .then((remote) => {
+        if (cancelled) return;
+        const base = remote ?? emptyOverrides();
+        setPublished(base);
+        if (!hasDraftRef.current) setOverrides(base);
+        setPublishedStatus("ready");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("Loading published overrides failed", err);
+        setPublishedStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Toasted from an effect, not from the catch above: <Toaster /> lives inside
+  // <App />, which is not mounted yet while the app waits on this fetch, and
+  // child effects (Toaster's subscription) run before this parent effect.
+  useEffect(() => {
+    if (publishedStatus === "error") {
+      toast.error("Could not load the published edits. Showing the base survey data.");
+    }
+  }, [publishedStatus]);
 
   // Persisting to localStorage is a side effect on an external system, not
   // React state — surface failures via a toast rather than component state.
+  // Only drafts are persisted: loading the published version must never
+  // create a local copy, or that browser would stop seeing new publishes.
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+    if (!hasDraft) return;
     const result = saveOverrides(overrides);
     if (!result.ok) {
       toast.error(result.error ?? "Failed to save changes locally.");
     }
-  }, [overrides]);
+  }, [overrides, hasDraft]);
+
+  // Every admin edit goes through here: apply it and mark this browser as
+  // holding an unpublished draft.
+  const editOverrides = useCallback((update: (prev: DataOverrides) => DataOverrides) => {
+    setOverrides(update);
+    setHasDraft(true);
+  }, []);
 
   const rawYears = useMemo(() => resolveYears(overrides), [overrides]);
 
@@ -266,7 +328,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   const setSectionPci = useCallback((year: string, section: string, pci: string | undefined) => {
-    setOverrides((prev) => {
+    editOverrides((prev) => {
       const forYear = { ...(prev.sectionPci[year] ?? {}) };
       if (pci === undefined) {
         delete forYear[section];
@@ -275,11 +337,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       return { ...prev, sectionPci: { ...prev.sectionPci, [year]: forYear } };
     });
-  }, []);
+  }, [editOverrides]);
 
   const setUnitScore = useCallback(
     (year: string, section: string, unitId: number, score: number) => {
-      setOverrides((prev) => ({
+      editOverrides((prev) => ({
         ...prev,
         unitScores: {
           ...prev.unitScores,
@@ -290,12 +352,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         },
       }));
     },
-    []
+    [editOverrides]
   );
 
   const setSectionInventory = useCallback(
     (year: string, section: string, patch: SectionInventoryOverride) => {
-      setOverrides((prev) => {
+      editOverrides((prev) => {
         const merged = mergeSectionInventory(prev.sectionInventory[year]?.[section] ?? {}, patch);
         return {
           ...prev,
@@ -306,12 +368,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         };
       });
     },
-    []
+    [editOverrides]
   );
 
   const setSectionRiskMeta = useCallback(
     (year: string, section: string, patch: Partial<SectionRiskMetaOverride>) => {
-      setOverrides((prev) => {
+      editOverrides((prev) => {
         const merged = mergeSectionRiskMeta(prev.sectionRiskMeta[year]?.[section] ?? {}, patch);
         return {
           ...prev,
@@ -322,12 +384,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         };
       });
     },
-    [],
+    [editOverrides],
   );
 
   const addYear = useCallback((input: { label: string; clonedFrom: string | null }) => {
     const id = input.label.trim();
-    setOverrides((prev) => ({
+    editOverrides((prev) => ({
       ...prev,
       addedYears: [
         ...prev.addedYears.filter((y) => y.id !== id),
@@ -336,10 +398,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       removedYears: prev.removedYears.filter((y) => y !== id),
     }));
     return id;
-  }, []);
+  }, [editOverrides]);
 
   const removeYear = useCallback((id: string) => {
-    setOverrides((prev) => ({
+    editOverrides((prev) => ({
       addedYears: prev.addedYears.filter((y) => y.id !== id),
       removedYears: SEED_YEARS.some((y) => y.id === id)
         ? Array.from(new Set([...prev.removedYears, id]))
@@ -351,20 +413,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       sectionRiskMeta: omitKey(prev.sectionRiskMeta, id),
       sectionInventory: omitKey(prev.sectionInventory, id),
     }));
-  }, []);
+  }, [editOverrides]);
 
   const importSectionsGeoJSON = useCallback((year: string, fc: GeoJSONFeatureCollection) => {
-    setOverrides((prev) => ({
+    editOverrides((prev) => ({
       ...prev,
       uploadedSections: { ...prev.uploadedSections, [year]: fc },
     }));
-  }, []);
+  }, [editOverrides]);
 
   // A fresh survey import replaces the section's hand-edited unit scores too,
   // otherwise those old edits would silently sit on top of the new PCI.
   const importUnitsGeoJSON = useCallback(
     (year: string, section: string, fc: GeoJSONFeatureCollection) => {
-      setOverrides((prev) => ({
+      editOverrides((prev) => ({
         ...prev,
         uploadedUnits: {
           ...prev.uploadedUnits,
@@ -373,25 +435,43 @@ export function DataProvider({ children }: { children: ReactNode }) {
         unitScores: { ...prev.unitScores, [year]: omitKey(prev.unitScores[year] ?? {}, section) },
       }));
     },
-    []
+    [editOverrides]
   );
 
   const importRepairLogJSON = useCallback((records: RepairLogRecord[]) => {
-    setOverrides((prev) => ({ ...prev, repairLog: records }));
-  }, []);
+    editOverrides((prev) => ({ ...prev, repairLog: records }));
+  }, [editOverrides]);
 
   const resetRepairLogToSeed = useCallback(() => {
-    setOverrides((prev) => {
+    editOverrides((prev) => {
       const next = { ...prev };
       delete next.repairLog;
       return next;
     });
-  }, []);
+  }, [editOverrides]);
 
   const resetDrafts = useCallback(() => {
     clearOverridesStorage();
-    setOverrides(emptyOverrides());
-  }, []);
+    setHasDraft(false);
+    setOverrides(published ?? emptyOverrides());
+  }, [published]);
+
+  const publish = useCallback(async () => {
+    // Refuse while the published version is unknown: a draft started from an
+    // empty base would otherwise wipe everything published before it.
+    if (publishedStatus !== "ready") {
+      throw new Error("The published version has not loaded yet.");
+    }
+    const snapshot = overrides;
+    await publishOverrides(snapshot);
+    setPublished(snapshot);
+    // Only drop the draft if nothing was edited while the upload ran;
+    // otherwise those newer edits stay as a draft for the next publish.
+    if (overridesRef.current === snapshot) {
+      clearOverridesStorage();
+      setHasDraft(false);
+    }
+  }, [overrides, publishedStatus]);
 
   const value = useMemo<DataContextValue>(
     () => ({
@@ -408,6 +488,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       importRepairLogJSON,
       resetRepairLogToSeed,
       resetDrafts,
+      hasDraft,
+      publishedStatus,
+      publish,
     }),
     [
       overrides,
@@ -423,8 +506,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
       importRepairLogJSON,
       resetRepairLogToSeed,
       resetDrafts,
+      hasDraft,
+      publishedStatus,
+      publish,
     ]
   );
+
+  // A visitor without a draft waits for the published version before the app
+  // renders, so nobody briefly sees (or edits on top of) the bare base data.
+  // The fetch gives up after 10 s, so a Blob outage cannot hang the app.
+  if (!hasDraft && publishedStatus === "loading") {
+    return (
+      <div className="flex items-center justify-center w-full h-screen h-dvh bg-background text-sm text-muted-foreground">
+        Loading data…
+      </div>
+    );
+  }
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

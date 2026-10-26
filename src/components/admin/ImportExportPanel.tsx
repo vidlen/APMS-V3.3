@@ -196,9 +196,9 @@ export default function ImportExportPanel({ year }: ImportExportPanelProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Reset all admin drafts?</AlertDialogTitle>
               <AlertDialogDescription>
-                This discards every unsaved edit, added year, and import across all survey years in
-                this browser, and reverts to the committed data. Export anything you want to keep
-                first.
+                This discards every unpublished edit, added year, and import across all survey years
+                in this browser, and reverts to the published version. Export anything you want to
+                keep first.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

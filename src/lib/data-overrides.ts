@@ -112,29 +112,47 @@ export function emptyOverrides(): DataOverrides {
   };
 }
 
+// Shared by the localStorage draft and the published Blob file, so both are
+// read through the same whitelist.
+export function normalizeOverrides(raw: unknown): DataOverrides {
+  const base = emptyOverrides();
+  if (!raw || typeof raw !== "object") return base;
+  const parsed = raw as Partial<DataOverrides> & Record<string, unknown>;
+  // Whitelist, not spread: a field this version no longer knows about
+  // (sectionRehab from v2.9) is dropped on load rather than carried forward
+  // and re-saved forever.
+  return {
+    addedYears: parsed.addedYears ?? base.addedYears,
+    removedYears: parsed.removedYears ?? base.removedYears,
+    sectionPci: parsed.sectionPci ?? base.sectionPci,
+    unitScores: parsed.unitScores ?? base.unitScores,
+    uploadedSections: parsed.uploadedSections ?? base.uploadedSections,
+    uploadedUnits: parsed.uploadedUnits ?? base.uploadedUnits,
+    sectionRiskMeta: parsed.sectionRiskMeta ?? base.sectionRiskMeta,
+    sectionInventory: parsed.sectionInventory ?? base.sectionInventory,
+    repairLog: parsed.repairLog as RepairLogRecord[] | undefined,
+  };
+}
+
 export function loadOverrides(): DataOverrides {
   if (typeof localStorage === "undefined") return emptyOverrides();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyOverrides();
-    const parsed = JSON.parse(raw) as Partial<DataOverrides> & Record<string, unknown>;
-    const base = emptyOverrides();
-    // Whitelist, not spread: a field this version no longer knows about
-    // (sectionRehab from v2.9) is dropped on load rather than carried forward
-    // and re-saved forever.
-    return {
-      addedYears: parsed.addedYears ?? base.addedYears,
-      removedYears: parsed.removedYears ?? base.removedYears,
-      sectionPci: parsed.sectionPci ?? base.sectionPci,
-      unitScores: parsed.unitScores ?? base.unitScores,
-      uploadedSections: parsed.uploadedSections ?? base.uploadedSections,
-      uploadedUnits: parsed.uploadedUnits ?? base.uploadedUnits,
-      sectionRiskMeta: parsed.sectionRiskMeta ?? base.sectionRiskMeta,
-      sectionInventory: parsed.sectionInventory ?? base.sectionInventory,
-      repairLog: parsed.repairLog as RepairLogRecord[] | undefined,
-    };
+    return normalizeOverrides(JSON.parse(raw));
   } catch {
     return emptyOverrides();
+  }
+}
+
+// True when this browser holds an unpublished admin draft. Viewers never
+// write the key, so for them this is always false.
+export function hasStoredOverrides(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    return localStorage.getItem(STORAGE_KEY) !== null;
+  } catch {
+    return false;
   }
 }
 
