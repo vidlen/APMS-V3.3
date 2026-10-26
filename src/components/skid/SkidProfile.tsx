@@ -80,7 +80,9 @@ export default function SkidProfile({
   const view: ProfileView = narrow ? "one" : viewProp;
   const shownCodes: LaneCode[] =
     view === "all" ? LANE_ORDER : view === "one" ? [lanes[0]] : LANE_ORDER.filter((c) => lanes.includes(c));
-  const shown = rt ? shownCodes.flatMap((c) => rt.lanes.filter((l) => l.lane === c)) : [];
+  // Lanes the survey did not measure have no readings: they are skipped and their chips disabled.
+  const measuredCodes = new Set(rt?.lanes.filter((l) => l.measured !== false).map((l) => l.lane));
+  const shown = rt ? shownCodes.flatMap((c) => rt.lanes.filter((l) => l.lane === c && l.measured !== false)) : [];
   const lane = shown[0] ?? null;
 
   const last = rt?.unit_bounds.last_end_m ?? 0;
@@ -198,7 +200,7 @@ export default function SkidProfile({
               className="h-8 rounded-md border border-input bg-card px-2 text-sm text-foreground"
             >
               {LANE_ORDER.map((l) => (
-                <option key={l} value={l}>
+                <option key={l} value={l} disabled={rt !== undefined && !measuredCodes.has(l)}>
                   {l}
                 </option>
               ))}
@@ -215,14 +217,14 @@ export default function SkidProfile({
               onValueChange={() => undefined}
             >
               {LANE_ORDER.slice(0, 4).map((c) => (
-                <ToggleGroupItem key={c} value={c} aria-label={`Lane ${c}`} onClick={() => clickLane(c)}>
+                <ToggleGroupItem key={c} value={c} aria-label={`Lane ${c}`} disabled={rt !== undefined && !measuredCodes.has(c)} onClick={() => clickLane(c)}>
                   {c}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
             <ToggleGroup type="multiple" variant="outline" size="sm" value={chipValue} onValueChange={() => undefined}>
               {LANE_ORDER.slice(4).map((c) => (
-                <ToggleGroupItem key={c} value={c} aria-label={`Lane ${c}`} onClick={() => clickLane(c)}>
+                <ToggleGroupItem key={c} value={c} aria-label={`Lane ${c}`} disabled={rt !== undefined && !measuredCodes.has(c)} onClick={() => clickLane(c)}>
                   {c}
                 </ToggleGroupItem>
               ))}
@@ -301,8 +303,10 @@ export default function SkidProfile({
         <div ref={plotRef} className="w-full">
           {error ? (
             <p className="py-10 text-sm text-center text-neutral-600 break-words">Failed to load per-meter data: {error}</p>
-          ) : loading || !rt || !lane ? (
+          ) : loading || !rt ? (
             <p className="py-10 text-sm text-center text-neutral-600">Loading per-meter readings...</p>
+          ) : !lane ? (
+            <p className="py-10 text-sm text-center text-neutral-600">Not measured: this lane has no readings in this survey.</p>
           ) : (
             <>
               <div className="mb-2 text-[12px] leading-snug">

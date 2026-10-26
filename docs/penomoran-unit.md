@@ -41,7 +41,7 @@ Berkas yang dinomori ulang, semua tahun dan semua runway dalam satu commit:
 - `public/data/runway-06-24-units-*.json` dan `runway-07L-25R-units-*.json` (`id`, `properties.square_id`, `properties.sampleUnit`; baris diurutkan naik menurut nomor baru)
 - `public/data/skid-*-2026.json` (`units[].unit`, `coverage.first_unit/last_unit`, `unit_numbering`)
 - `public/data/skid-*-2026-1m.json` (`unit_bounds.starts_m`, `window_mid_m`, dan nomor unit di `reconciliation.edge_cases`)
-- `scripts/skid/skid-unit-stations-2026.json` (tabel batas unit untuk `build-skid-1m.mjs`)
+- `src/config/skid-unit-stations-2026.json` (tabel batas unit untuk `build-skid-1m.mjs`)
 
 Skripnya: `node scripts/renumber-units.mjs` (hanya memeriksa dan mencetak tabel invarian) atau `--write` (menulis). Arah tiap berkas ditentukan dari geometri, dan berkas yang sudah barat-dulu dilewati, jadi menjalankannya dua kali tidak membalik ulang.
 

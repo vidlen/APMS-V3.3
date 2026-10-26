@@ -7,12 +7,14 @@ import type { LaneCode, RunwayId, SkidBasis } from "../types/skid.ts";
 export type ProfileViewParam = "one" | "compare" | "all";
 
 /** Query keys owned by the Skid tab (Home removes them when another tab is shown). */
-export const SKID_URL_KEYS = ["rw", "unit", "lane", "lanes", "basis", "view", "x"] as const;
+export const SKID_URL_KEYS = ["survey", "rw", "unit", "lane", "lanes", "basis", "view", "x"] as const;
 
 const UNIT_COUNT: Record<RunwayId, number> = { "06-24": 300, "07L-25R": 360 };
 const RUNWAY_IDS = Object.keys(UNIT_COUNT) as RunwayId[];
 
 export interface SkidUrlState {
+  /** Survey id; the tab ignores one it does not know. */
+  survey?: string;
   runway?: RunwayId;
   unit?: number;
   lane?: LaneCode;
@@ -28,6 +30,8 @@ const asLane = (s: string): LaneCode | undefined => LANE_ORDER.find((l) => l ===
 export function parseSkidUrl(search: string): SkidUrlState {
   const p = new URLSearchParams(search);
   const out: SkidUrlState = {};
+  const survey = p.get("survey");
+  if (survey && /^[a-z0-9-]{1,40}$/.test(survey)) out.survey = survey;
   const rw = RUNWAY_IDS.find((r) => r === p.get("rw"));
   if (rw) out.runway = rw;
   const unit = Number(p.get("unit"));
@@ -46,6 +50,8 @@ export function parseSkidUrl(search: string): SkidUrlState {
 }
 
 export interface SkidUrlInput {
+  /** Left out of the URL when it is the default (newest) survey. */
+  survey?: string;
   runway: RunwayId;
   unit?: number;
   lane?: LaneCode;
@@ -59,6 +65,7 @@ export interface SkidUrlInput {
 export function skidUrlSearch(currentSearch: string, s: SkidUrlInput): string {
   const p = new URLSearchParams(currentSearch);
   const put = (key: string, value: string | undefined) => (value === undefined ? p.delete(key) : p.set(key, value));
+  put("survey", s.survey);
   put("rw", s.runway);
   put("unit", s.unit?.toString());
   put("lane", s.lane);

@@ -2,6 +2,7 @@ import type { GeoJSONFeatureCollection } from "@/lib/geojson-types";
 import type { BranchRole, Detectability, DistressSeverityLevel } from "@/config/riskScales";
 import type { SectionData } from "@/lib/pci-utils";
 import type { RepairLogRecord } from "@/lib/repair-log";
+import type { LaneCode, RunwayId } from "@/types/skid";
 
 export interface AddedYearMeta {
   id: string;
@@ -49,6 +50,25 @@ export type SectionInventoryOverride = Partial<
   Pick<SectionData, "Type" | "PCN" | "Dimension" | "Last Major Construction Year">
 >;
 
+// One runway of an admin-imported skid survey (Admin -> Skid Resistance). The big
+// per-unit / per-meter JSON files live in Vercel Blob; only these URLs are kept here
+// so overrides.json (which every visitor downloads before the app shows) stays small.
+export interface SkidSurveyRunwayEntry {
+  unitsUrl: string;
+  traceUrl: string;
+  rawCsv: { name: string; url: string; sha256: string }[];
+  startWib: string; // "YYYY-MM-DD HH:mm"
+  lanes: LaneCode[]; // measured lanes
+  s0Mode: "gps" | "manual" | "mixed";
+  importedAt: string; // ISO
+}
+
+export interface SkidSurveyEntry {
+  id: string; // "2026-06", "2027-06", ...
+  label: string; // "Jun 2026"
+  runways: Partial<Record<RunwayId, SkidSurveyRunwayEntry>>;
+}
+
 // Everything an admin can change, stored as a compact set of deltas rather
 // than full data copies — base survey files (megabytes) are never
 // duplicated into localStorage, only the edits on top of them.
@@ -69,6 +89,8 @@ export interface DataOverrides {
    * of which PCI survey year is being viewed. Undefined means "use the seed".
    */
   repairLog?: RepairLogRecord[];
+  /** Admin-imported skid surveys (manifest only, see SkidSurveyRunwayEntry). The June 2026 seed is virtual and not stored here. */
+  skidSurveys?: Record<string, SkidSurveyEntry>;
 }
 
 // Merges a partial patch into an existing override object. A key explicitly
@@ -131,6 +153,7 @@ export function normalizeOverrides(raw: unknown): DataOverrides {
     sectionRiskMeta: parsed.sectionRiskMeta ?? base.sectionRiskMeta,
     sectionInventory: parsed.sectionInventory ?? base.sectionInventory,
     repairLog: parsed.repairLog as RepairLogRecord[] | undefined,
+    skidSurveys: parsed.skidSurveys,
   };
 }
 

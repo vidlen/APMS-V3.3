@@ -5,11 +5,14 @@ import type { SkidLaneTrace, SkidRunwayTrace } from "../types/skid.ts";
 
 // ---------------------------------------------------------------- posisi
 
+/** s0_m kosong (null) hanya untuk lajur yang tidak diukur (measured === false); lajur itu tidak punya bacaan, jadi NaN tak pernah dipakai. */
+const s0Of = (t: SkidLaneTrace): number => t.s0_m ?? Number.NaN;
+
 /** DISTANCE (m dari awal rekaman, seperti di layar alat) untuk bacaan ke-i. */
 export const distanceOf = (t: SkidLaneTrace, i: number): number => t.d_first + i;
 
 /** Stasiun (m dari tepi luar ambang 24 / 25R, bukan dari unit 1) untuk bacaan ke-i. Aturan yang sama dengan berkas per unit. */
-export const stationOf = (t: SkidLaneTrace, i: number): number => t.s0_m - (t.d_first + i);
+export const stationOf = (t: SkidLaneTrace, i: number): number => s0Of(t) - (t.d_first + i);
 
 /** x = jarak dari ujung runway tempat uji dimulai (ujung 06 / 07L), searah uji. Dipakai sebagai sumbu x grafik. */
 export const xOfStation = (rt: SkidRunwayTrace, station: number): number => rt.unit_bounds.last_end_m - station;
@@ -17,7 +20,7 @@ export const xOf = (rt: SkidRunwayTrace, t: SkidLaneTrace, i: number): number =>
 
 /** Indeks bacaan terdekat dengan x, atau null di luar rekaman lajur itu. */
 export function indexAtX(rt: SkidRunwayTrace, t: SkidLaneTrace, x: number): number | null {
-  const i = Math.round(x - (rt.unit_bounds.last_end_m - t.s0_m) - t.d_first);
+  const i = Math.round(x - (rt.unit_bounds.last_end_m - s0Of(t)) - t.d_first);
   return i >= 0 && i < t.mu.length ? i : null;
 }
 
@@ -88,7 +91,7 @@ const HALF_WINDOW = 762000; // 76,2 m
 /** μ 152 m satu unit dihitung ulang dari data per meter dengan aturan berkas per unit (untuk uji G).
  *  edge = true kalau ada bacaan tepat di tepi jendela (lihat brief §3.6). */
 export function unitWindowMean(rt: SkidRunwayTrace, t: SkidLaneTrace, unit: number): { mean: number | null; n: number; edge: boolean } {
-  const s0 = Math.round(t.s0_m * SCALE);
+  const s0 = Math.round(s0Of(t) * SCALE);
   const wm = Math.round(rt.unit_bounds.window_mid_m[unit - 1] * SCALE);
   const lo = wm - HALF_WINDOW;
   const hi = wm + HALF_WINDOW;
@@ -236,7 +239,7 @@ export function profileRows(
     const xb = xa + step;
     const row: ProfileRow = { x: step === 1 ? xa : (xa + xb) / 2 };
     for (const t of lanes) {
-      const c = rt.unit_bounds.last_end_m - t.s0_m + t.d_first; // x bacaan i = c + i
+      const c = rt.unit_bounds.last_end_m - s0Of(t) + t.d_first; // x bacaan i = c + i
       const i0 = Math.max(0, Math.ceil(xa - c - 1e-9));
       const i1 = Math.min(t.mu.length - 1, Math.ceil(xb - c - 1e-9) - 1);
       let lo: number | null = null;
@@ -286,7 +289,7 @@ export function meterRuns(values: readonly (number | null)[]): MeterRun[] {
  *  the lowest of its readings when wider), so tooltips must use the same bucketing: plain "nearest
  *  reading" can differ by one reading from the one whose value the cell shows. `step` is the cell width in m. */
 export function readingAtX(rt: SkidRunwayTrace, lane: SkidLaneTrace, x: number, step: number): number | null {
-  const c = rt.unit_bounds.last_end_m - lane.s0_m + lane.d_first; // x of reading i is c + i
+  const c = rt.unit_bounds.last_end_m - s0Of(lane) + lane.d_first; // x of reading i is c + i
   const i = step === 1 ? Math.ceil(Math.floor(x) - c - 1e-9) : Math.round(x - c);
   return i >= 0 && i < lane.mu.length ? i : null;
 }
@@ -299,7 +302,7 @@ export interface FeetMark { x: number; feet: number }
  *  (FAA AC 150/5320-12C App. 3 par. 1.a(9)), that fall inside `domain` and inside the recording. */
 export function feetMarks(rt: SkidRunwayTrace, lane: SkidLaneTrace, domain: readonly [number, number]): FeetMark[] {
   const step = 30.48;
-  const base = rt.unit_bounds.last_end_m - lane.s0_m; // x of DISTANCE d is base + d
+  const base = rt.unit_bounds.last_end_m - s0Of(lane); // x of DISTANCE d is base + d
   const lastD = lane.d_first + lane.mu.length - 1;
   const out: FeetMark[] = [];
   const from = Math.max(1, Math.ceil((domain[0] - base) / step));

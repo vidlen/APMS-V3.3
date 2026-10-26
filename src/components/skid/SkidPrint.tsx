@@ -141,7 +141,7 @@ export default function SkidPrint({ runway, traceState, onDone }: { runway: Runw
   return createPortal(
     <div className="skid-print-root">
       <style>{CSS}</style>
-      {rt.lanes.map((lane) => (
+      {rt.lanes.filter((lane) => lane.measured !== false).map((lane) => (
         <PrintPage key={lane.lane} rt={rt} runway={runway} lane={lane} ma={ma} />
       ))}
     </div>,

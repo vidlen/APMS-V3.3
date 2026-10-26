@@ -9,6 +9,7 @@ const runwayId = z.enum(["06-24", "07L-25R"]);
 const num = z.number();
 const numOrNull = z.number().nullable();
 const strOrNull = z.string().nullable();
+const source = z.object({ kind: z.enum(["seed", "admin-import"]), imported_at: z.string().optional(), app_version: z.string().optional() });
 const governing = z.object({ lane: laneCode, mu: num }).nullable();
 
 const survey = z.object({
@@ -30,8 +31,9 @@ export const SkidRunwaySchema: z.ZodType<SkidRunwayData> = z.object({
   geometry_source: z.string(),
   lanes: z.array(z.object({
     code: laneCode, side: z.enum(["L", "R"]), offset_m: num, gps: z.boolean(),
-    s0_m: num, s0_source: z.string(), record_start_utc: z.string(),
-    mean_mu_run: num, mean_speed_kmh: num, file: z.string(),
+    s0_m: numOrNull, s0_source: z.string(), record_start_utc: strOrNull,
+    mean_mu_run: numOrNull, mean_speed_kmh: numOrNull, file: z.string(),
+    measured: z.boolean().optional(),
   })).length(8),
   units: z.array(z.object({
     unit: num, station_start_m: num, station_mid_m: num,
@@ -41,6 +43,13 @@ export const SkidRunwaySchema: z.ZodType<SkidRunwayData> = z.object({
     governing_152m: governing,
     centroid_lonlat: z.tuple([num, num]),
   })),
+  source: source.optional(),
+}).superRefine((d, ctx) => {
+  d.lanes.forEach((l, i) => {
+    if (l.measured === false) return;
+    for (const k of ["s0_m", "record_start_utc", "mean_mu_run", "mean_speed_kmh"] as const)
+      if (l[k] === null) ctx.addIssue({ code: "custom", message: `lanes[${i}].${k} is null but the lane is measured` });
+  });
 });
 
 export const SkidTraceSchema: z.ZodType<SkidRunwayTrace> = z.object({
@@ -60,7 +69,8 @@ export const SkidTraceSchema: z.ZodType<SkidRunwayTrace> = z.object({
     max_abs_diff_10m: num, max_abs_diff_152m: num, edge_cases: z.array(z.string()),
   }),
   lanes: z.array(z.object({
-    lane: laneCode, offset_m: num, file: z.string(), s0_m: num, gps: z.boolean(), record_start_utc: z.string(),
+    lane: laneCode, offset_m: num, file: z.string(), s0_m: numOrNull, gps: z.boolean(), record_start_utc: strOrNull,
+    measured: z.boolean().optional(),
     d_first: num, length_m: num, time_first: strOrNull, time_last: strOrNull,
     mu: z.array(numOrNull), speed_kmh: z.array(numOrNull),
     markers: z.array(z.object({ d: num, text: z.string() })),
@@ -76,6 +86,11 @@ export const SkidTraceSchema: z.ZodType<SkidRunwayTrace> = z.object({
     if (l.lane !== LANE_ORDER[i]) ctx.addIssue({ code: "custom", message: `lanes[${i}] is ${l.lane}, expected ${LANE_ORDER[i]}` });
     if (l.mu.length !== l.length_m || l.speed_kmh.length !== l.length_m)
       ctx.addIssue({ code: "custom", message: `${l.lane}: mu/speed length differs from length_m` });
+    if (l.measured === false) {
+      if (l.length_m !== 0) ctx.addIssue({ code: "custom", message: `${l.lane}: not measured but length_m is ${l.length_m}` });
+    } else if (l.s0_m === null || l.record_start_utc === null) {
+      ctx.addIssue({ code: "custom", message: `${l.lane}: s0_m / record_start_utc is null but the lane is measured` });
+    }
   });
   if (d.unit_bounds.starts_m.length !== d.unit_bounds.window_mid_m.length)
     ctx.addIssue({ code: "custom", message: "unit_bounds arrays differ in length" });

@@ -20,13 +20,14 @@ import { governingFor, laneMu, unitStationRange } from "@/lib/skid";
 import { laneLine, makeStationProjector, type StationProjector } from "@/lib/skid-geo";
 import { meterRuns, stationOf, unitAtStation } from "@/lib/skid-trace";
 import type { RunwayId, SkidBasis, SkidRunwayTrace, SkidUnit } from "@/types/skid";
-import type { SkidRunwayBundle } from "@/hooks/useSkidData";
+import type { SkidRunwayBundle, SkidSurveyBundles } from "@/hooks/useSkidData";
 import { subscribeHover } from "./hover-store";
 import { BASIS_LABEL, RUNWAYS, RUNWAY_BY_ID, fmtInt, muText, type MapLanes, type SelectedUnit } from "./skid-ui";
 import "ol/ol.css";
 
 interface SkidMapProps {
-  bundles: Record<RunwayId, SkidRunwayBundle>;
+  /** Only the runways the selected survey contains. */
+  bundles: SkidSurveyBundles;
   runway: RunwayId;
   basis: SkidBasis;
   selected: SelectedUnit | null;
@@ -72,7 +73,7 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, tr
   const unitsByRw = useMemo(
     () =>
       Object.fromEntries(
-        RUNWAYS.map((r) => [r.id, new Map(bundles[r.id].data.units.map((u) => [u.unit, u]))]),
+        RUNWAYS.map((r) => [r.id, new Map((bundles[r.id]?.data.units ?? []).map((u) => [u.unit, u]))]),
       ) as Record<RunwayId, Map<number, SkidUnit>>,
     [bundles],
   );
@@ -128,7 +129,7 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, tr
       zIndex: 100,
       style: new Style({ image: new CircleStyle({ radius: 7, fill: new Fill({ color: SELECTED_COLOR }), stroke: new Stroke({ color: "#111111", width: 2 }) }) }),
     });
-    const projectors = Object.fromEntries(RUNWAYS.map((r) => [r.id, makeStationProjector(bundles[r.id].data.units)])) as Record<RunwayId, StationProjector>;
+    const projectors = Object.fromEntries(RUNWAYS.filter((r) => bundles[r.id]).map((r) => [r.id, makeStationProjector((bundles[r.id] as SkidRunwayBundle).data.units)])) as Record<RunwayId, StationProjector>;
     const unsubscribeHover = subscribeHover((p) => {
       if (!p) {
         markerLayer.setVisible(false);
@@ -140,7 +141,9 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, tr
 
     const all = createEmpty();
     for (const rw of RUNWAYS) {
-      const features = new GeoJSON().readFeatures(bundles[rw.id].units, GEOJSON_OPTS);
+      const bundle = bundles[rw.id];
+      if (!bundle) continue;
+      const features = new GeoJSON().readFeatures(bundle.units, GEOJSON_OPTS);
       const ext = createEmpty();
       for (const f of features) {
         f.set("rw", rw.id);
@@ -242,7 +245,8 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, tr
     if (!source) return;
     source.clear();
     if (mapLanes !== "unit") return;
-    const { units } = bundles[runway].data;
+    const units = bundles[runway]?.data.units;
+    if (!units) return;
     const project = makeStationProjector(units);
     const features: Feature[] = [];
     for (const u of units) {
@@ -273,7 +277,9 @@ export default function SkidMap({ bundles, runway, basis, selected, mapLanes, tr
     if (!source) return;
     source.clear();
     if (mapLanes !== "meter" || !trace || trace.runway !== runway) return;
-    const project = makeStationProjector(bundles[runway].data.units);
+    const runwayUnits = bundles[runway]?.data.units;
+    if (!runwayUnits) return;
+    const project = makeStationProjector(runwayUnits);
     const features: Feature[] = [];
     for (const t of trace.lanes) {
       for (const run of meterRuns(t.mu)) {

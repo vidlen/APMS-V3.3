@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_SKID_BASIS } from "@/config/skid";
 import { useNarrowViewport } from "@/hooks/useNarrowViewport";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSkidData } from "@/hooks/useSkidData";
+import { useSkidSurveys } from "@/hooks/useSkidSurveys";
 import { useSkidTrace } from "@/hooks/useSkidTrace";
 import { governingFor, summarize } from "@/lib/skid";
 import { parseSkidUrl, skidUrlSearch } from "@/lib/skid-url";
@@ -29,10 +32,14 @@ import {
 } from "./skid-ui";
 
 export default function SkidTab() {
-  const { data: bundles, error, loading } = useSkidData();
+  const surveys = useSkidSurveys(); // newest first; the June 2026 seed is always there
   const narrow = useNarrowViewport();
   // A shared link (?rw=07L-25R&unit=301&lane=L3.0 ...) sets the first view; read once, validated in skid-url.ts.
   const [initial] = useState(() => parseSkidUrl(window.location.search));
+  const [surveyId, setSurveyId] = useState<string | undefined>(initial.survey);
+  // An unknown or deleted id falls back to the newest survey.
+  const survey = surveys.find((s) => s.id === surveyId) ?? surveys[0];
+  const { data: bundles, error, loading } = useSkidData(survey);
   const [runway, setRunway] = useState<RunwayId>(initial.runway ?? "06-24");
   const basis = DEFAULT_SKID_BASIS; // 10 m only; the 152 m (FAA) toggle was dropped
   const [mapLanes, setMapLanes] = useState<MapLanes>("off");
@@ -52,6 +59,7 @@ export default function SkidTab() {
   // entries; history.state is passed through so the router's own state survives).
   useEffect(() => {
     const q = skidUrlSearch(window.location.search, {
+      survey: survey.id === surveys[0].id ? undefined : survey.id,
       runway,
       unit: selected?.runway === runway ? selected.unit : undefined,
       lane: profileLanes?.[0],
@@ -61,15 +69,23 @@ export default function SkidTab() {
       x: xDomain,
     });
     window.history.replaceState(window.history.state, "", q ? `?${q}` : window.location.pathname);
-  }, [runway, selected, profileLanes, basis, profileView, xDomain]);
+  }, [survey.id, surveys, runway, selected, profileLanes, basis, profileView, xDomain]);
 
   // Per-meter readings of the active runway: the profile is always on the page, so this loads on entry.
-  const traceState = useSkidTrace(runway);
+  const traceState = useSkidTrace(survey, survey.runways[runway] ? runway : null);
 
   const perUnit = useMemo(
-    () => bundles && (Object.fromEntries(RUNWAYS.map((r) => [r.id, bundles[r.id].data])) as Record<RunwayId, SkidRunwayData>),
+    () => bundles && (Object.fromEntries(RUNWAYS.filter((r) => bundles[r.id]).map((r) => [r.id, bundles[r.id]?.data])) as Partial<Record<RunwayId, SkidRunwayData>>),
     [bundles],
   );
+
+  // A different survey has its own units and lanes, so selection, lane and zoom start over.
+  const changeSurvey = (id: string) => {
+    setSurveyId(id);
+    setSelected(null);
+    setProfileLanes(null);
+    setXDomain(null);
+  };
 
   // Lane and zoom belong to one runway, so switching runway resets them.
   const changeRunway = (rw: RunwayId) => {
@@ -83,7 +99,7 @@ export default function SkidTab() {
   const handleSelect = useCallback(
     (rw: RunwayId, unit: number) => {
       setSelected({ runway: rw, unit });
-      const u = perUnit?.[rw].units[unit - 1];
+      const u = perUnit?.[rw]?.units[unit - 1];
       const gov = u ? governingFor(u, basis) : null;
       const follow = profileView === "one" && gov ? [gov.lane] : null;
       if (rw !== runway) {
@@ -121,7 +137,7 @@ export default function SkidTab() {
   }
 
   const data = perUnit[runway];
-  const defaultLane = summarize(data, "152m").lowest?.lane ?? "L3.0";
+  const defaultLane = (data && (summarize(data, "152m").lowest?.lane ?? data.lanes.find((l) => l.measured !== false)?.code)) || "L3.0";
   const lane0 = profileLanes?.[0] ?? defaultLane;
 
   // Compare needs at least two lanes to be useful (start with the mirror lane); One lane keeps just the first.
@@ -133,12 +149,32 @@ export default function SkidTab() {
 
   const selectedHere = selected?.runway === runway ? selected.unit : null;
   const panel = (
-    <SkidUnitPanel data={perUnit} selected={selected} basis={basis} onClose={clearSelection} onShowInProfile={showInProfile} />
+    <SkidUnitPanel survey={survey} data={perUnit} selected={selected} basis={basis} onClose={clearSelection} onShowInProfile={showInProfile} />
   );
 
   const toolbar = (
     <div className={`${narrow ? "" : "sticky top-0 z-20"} flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5 bg-card border-b border-border`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {surveys.length > 1 ? (
+          <div className="flex items-center gap-2">
+            <span className="panel-label">Survey</span>
+            <Select value={survey.id} onValueChange={changeSurvey}>
+              <SelectTrigger size="sm" className="w-[130px]" aria-label="Survey">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {surveys.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <span className="text-sm text-foreground">{survey.label}</span>
+        )}
+
         <ToggleGroup type="single" variant="outline" size="sm" value={runway} onValueChange={(v) => v && changeRunway(v as RunwayId)}>
           {RUNWAYS.map((r) => (
             <ToggleGroupItem key={r.id} value={r.id}>
@@ -163,11 +199,24 @@ export default function SkidTab() {
   // On desktop the unit panel is docked on the right; on narrow screens it sits between the profile and the tail.
   const tail = (
     <>
-      <SkidRuns data={perUnit} />
-      <SkidAbout data={perUnit} />
+      <SkidRuns survey={survey} data={perUnit} />
+      <SkidAbout survey={survey} data={perUnit} />
     </>
   );
-  const main = (
+  const missing = !data ? (
+    <Empty className="py-16">
+      <EmptyHeader>
+        <EmptyTitle>{RUNWAY_BY_ID[runway].label} was not measured in this survey</EmptyTitle>
+        <EmptyDescription>Choose another runway or another survey.</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  ) : null;
+  const main = missing ? (
+    <>
+      {toolbar}
+      {missing}
+    </>
+  ) : (
     <>
       {toolbar}
       <div className="relative shrink-0 h-[46vh] min-h-[300px]">
@@ -182,9 +231,9 @@ export default function SkidTab() {
         />
       </div>
       <SkidLegend basis={basis} res={mapLanes === "meter" ? "meter" : "unit"} />
-      <SkidSummary data={data} basis={basis} onSelectUnit={(unit) => handleSelect(runway, unit)} />
+      <SkidSummary data={data as SkidRunwayData} basis={basis} onSelectUnit={(unit) => handleSelect(runway, unit)} />
       <SkidHeatmap
-        data={data}
+        data={data as SkidRunwayData}
         runway={RUNWAY_BY_ID[runway]}
         basis={basis}
         res={heatmapRes}

@@ -24,7 +24,10 @@ import {
   type DataOverrides,
   type SectionRiskMetaOverride,
   type SectionInventoryOverride,
+  type SkidSurveyEntry,
+  type SkidSurveyRunwayEntry,
 } from "@/lib/data-overrides";
+import type { RunwayId } from "@/types/skid";
 import { validateRepairLog, type RepairLogRecord } from "@/lib/repair-log";
 import { fetchPublishedOverrides, publishOverrides } from "@/lib/published-overrides";
 
@@ -232,6 +235,10 @@ interface DataContextValue {
   /** Clears an admin-imported log, reverting to the seed. Narrower than
    *  resetDrafts, which discards every override across every year. */
   resetRepairLogToSeed: () => void;
+  /** Adds or replaces one runway of an admin-imported skid survey (draft only; Publish makes it public). */
+  upsertSkidSurveyRunway: (surveyId: string, label: string, runway: RunwayId, entry: SkidSurveyRunwayEntry) => void;
+  /** Removes a skid survey from the manifest. Blob files are left in place. */
+  removeSkidSurvey: (surveyId: string) => void;
   /** Discards this browser's unpublished draft and returns to the published version. */
   resetDrafts: () => void;
   /** True while this browser holds edits that have not been published yet. */
@@ -402,6 +409,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const removeYear = useCallback((id: string) => {
     editOverrides((prev) => ({
+      ...prev, // keeps the year-less fields (repairLog, skidSurveys)
       addedYears: prev.addedYears.filter((y) => y.id !== id),
       removedYears: SEED_YEARS.some((y) => y.id === id)
         ? Array.from(new Set([...prev.removedYears, id]))
@@ -450,6 +458,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, [editOverrides]);
 
+  const upsertSkidSurveyRunway = useCallback(
+    (surveyId: string, label: string, runway: RunwayId, entry: SkidSurveyRunwayEntry) => {
+      editOverrides((prev) => {
+        const old: SkidSurveyEntry | undefined = prev.skidSurveys?.[surveyId];
+        const next: SkidSurveyEntry = { id: surveyId, label, runways: { ...old?.runways, [runway]: entry } };
+        return { ...prev, skidSurveys: { ...prev.skidSurveys, [surveyId]: next } };
+      });
+    },
+    [editOverrides],
+  );
+
+  const removeSkidSurvey = useCallback(
+    (surveyId: string) => {
+      editOverrides((prev) => ({ ...prev, skidSurveys: omitKey(prev.skidSurveys ?? {}, surveyId) }));
+    },
+    [editOverrides],
+  );
+
   const resetDrafts = useCallback(() => {
     clearOverridesStorage();
     setHasDraft(false);
@@ -487,6 +513,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       importUnitsGeoJSON,
       importRepairLogJSON,
       resetRepairLogToSeed,
+      upsertSkidSurveyRunway,
+      removeSkidSurvey,
       resetDrafts,
       hasDraft,
       publishedStatus,
@@ -505,6 +533,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       importUnitsGeoJSON,
       importRepairLogJSON,
       resetRepairLogToSeed,
+      upsertSkidSurveyRunway,
+      removeSkidSurvey,
       resetDrafts,
       hasDraft,
       publishedStatus,

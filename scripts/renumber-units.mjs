@@ -192,7 +192,7 @@ function discover(root) {
     else if ((m = /^skid-(.+)-2026\.json$/.exec(f)) && RUNWAYS[m[1]]) out.push({ kind: 'skid', rw: m[1], path: join(data, f) });
     else if ((m = /^skid-(.+)-2026-1m\.json$/.exec(f)) && RUNWAYS[m[1]]) out.push({ kind: 'skid1m', rw: m[1], path: join(data, f) });
   }
-  const st = join(root, 'scripts/skid/skid-unit-stations-2026.json');
+  const st = join(root, 'src/config/skid-unit-stations-2026.json');
   if (existsSync(st)) for (const rw of Object.keys(RUNWAYS)) out.push({ kind: 'stations', rw, path: st });
   return out;
 }

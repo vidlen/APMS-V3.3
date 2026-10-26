@@ -1,22 +1,25 @@
 import { LANE_ORDER } from "@/config/skid";
 import { useSkidTrace } from "@/hooks/useSkidTrace";
+import type { SkidSurveyView } from "@/lib/skid-surveys";
 import type { RunwayId, SkidRunwayData } from "@/types/skid";
 import Mu from "./Mu";
 import { RUNWAYS, fmtInt, muText, wibClock } from "./skid-ui";
 
-// Every measurement run that went into the app: 8 lanes × 2 runways.
+// Every measurement run of the selected survey (up to 8 lanes × 2 runways).
 // Offsets, GPS flags and file names come from the per-unit files; lengths,
 // means and speed/repeat counts from the per-meter files.
-export default function SkidRuns({ data }: { data: Record<RunwayId, SkidRunwayData> }) {
-  const a = useSkidTrace("06-24");
-  const b = useSkidTrace("07L-25R");
+export default function SkidRuns({ survey, data }: { survey: SkidSurveyView; data: Partial<Record<RunwayId, SkidRunwayData>> }) {
+  const a = useSkidTrace(survey, survey.runways["06-24"] ? "06-24" : null);
+  const b = useSkidTrace(survey, survey.runways["07L-25R"] ? "07L-25R" : null);
   const traces = { "06-24": a.trace, "07L-25R": b.trace } as const;
   const error = a.error ?? b.error;
-  const ready = a.trace && b.trace;
+  const present = RUNWAYS.filter((r) => data[r.id]);
+  const ready = present.every((r) => traces[r.id]);
+  const runCount = present.reduce((n, r) => n + (data[r.id]?.lanes.filter((l) => l.measured !== false).length ?? 0), 0);
 
   return (
     <div className="px-4 py-3 bg-card border-t border-border">
-      <h3 className="panel-label mb-2">Measurement runs (16) — 8 lanes × 2 runways, 65 km/h, wet</h3>
+      <h3 className="panel-label mb-2">Measurement runs ({runCount}) — {present.length} runway{present.length === 1 ? "" : "s"}, 65 km/h, wet</h3>
 
       {error ? (
         <p className="py-4 text-sm text-muted-foreground break-words">Failed to load per-meter data: {error}</p>
@@ -41,21 +44,31 @@ export default function SkidRuns({ data }: { data: Record<RunwayId, SkidRunwayDa
               </tr>
             </thead>
             <tbody>
-              {RUNWAYS.flatMap((rw) =>
+              {present.flatMap((rw) =>
                 LANE_ORDER.map((code, idx) => {
-                  const meta = data[rw.id].lanes.find((l) => l.code === code)!;
-                  const t = traces[rw.id]!.lanes.find((l) => l.lane === code)!;
+                  const meta = data[rw.id]?.lanes.find((l) => l.code === code);
+                  const t = traces[rw.id]?.lanes.find((l) => l.lane === code);
+                  if (!meta || !t) return null;
+                  if (meta.measured === false)
+                    return (
+                      <tr key={`${rw.id}-${code}`} className={`hairline-row text-muted-foreground ${idx === 0 ? "border-t border-border" : ""}`}>
+                        <td className="py-1.5 pr-2 whitespace-nowrap">{idx === 0 ? rw.label : ""}</td>
+                        <td className="px-2 font-mono">{code}</td>
+                        <td className="text-right px-2 font-mono">{meta.offset_m.toFixed(1)}</td>
+                        <td className="px-2" colSpan={9}>Not measured</td>
+                      </tr>
+                    );
                   return (
                     <tr key={`${rw.id}-${code}`} className={`hairline-row ${idx === 0 ? "border-t border-border" : ""}`}>
                       <td className="py-1.5 pr-2 whitespace-nowrap">{idx === 0 ? rw.label : ""}</td>
                       <td className="px-2 font-mono">{code}</td>
                       <td className="text-right px-2 font-mono">{meta.offset_m.toFixed(1)}</td>
-                      <td className="text-right px-2 font-mono whitespace-nowrap">{wibClock(meta.record_start_utc)}</td>
+                      <td className="text-right px-2 font-mono whitespace-nowrap">{meta.record_start_utc ? wibClock(meta.record_start_utc) : "—"}</td>
                       <td className="text-right px-2 font-mono">{fmtInt(t.length_m)}</td>
                       <td className="text-right px-2 font-mono text-foreground">{muText(t.stats.mean_mu)}</td>
                       <td className="text-right px-2 font-mono">{t.stats.mean_speed_kmh?.toFixed(1) ?? "—"}</td>
                       <td className="text-right px-2 font-mono">{t.stats.rows_outside_speed_tol}</td>
-                      <td className="text-right px-2 font-mono">{((t.stats.held_rows / t.stats.rows) * 100).toFixed(1)}</td>
+                      <td className="text-right px-2 font-mono">{t.stats.rows ? ((t.stats.held_rows / t.stats.rows) * 100).toFixed(1) : "—"}</td>
                       <td className="text-center px-2">{meta.gps ? "yes" : "no"}</td>
                       <td className="px-2 text-muted-foreground max-w-[260px] truncate" title={meta.file}>
                         {meta.file}

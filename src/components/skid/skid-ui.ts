@@ -65,7 +65,7 @@ export const laneDescription = (code: LaneCode): string => `${code.slice(1)} m $
 export function laneHeaderLines(rt: SkidRunwayTrace, runway: RunwayMeta, lane: SkidLaneTrace): [string, string] {
   const wetting = rt.survey.wetting === "On" ? "self-wetting (1 mm)" : `wetting ${rt.survey.wetting}`;
   return [
-    `${runway.label} · Lane ${lane.lane} (${laneDescription(lane.lane)}) · Test direction ${rt.survey.direction} · ${wibStamp(lane.record_start_utc)}`,
+    `${runway.label} · Lane ${lane.lane} (${laneDescription(lane.lane)}) · Test direction ${rt.survey.direction} · ${lane.record_start_utc ? wibStamp(lane.record_start_utc) : "not measured"}`,
     `${rt.survey.speed_kmh} km/h · ${wetting} · ${fmtInt(lane.length_m)} m recorded · run mean μ ${muText(lane.stats.mean_mu)} · mean speed ${lane.stats.mean_speed_kmh?.toFixed(1) ?? "—"} km/h`,
   ];
 }

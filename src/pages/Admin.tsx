@@ -10,8 +10,10 @@ import SampleUnitTable from "@/components/admin/SampleUnitTable";
 import ImportExportPanel from "@/components/admin/ImportExportPanel";
 import RepairLogPanel from "@/components/admin/RepairLogPanel";
 import PublishBar from "@/components/admin/PublishBar";
+import SkidImportPanel from "@/components/admin/SkidImportPanel";
+import SkidSurveyList from "@/components/admin/SkidSurveyList";
 
-type AdminTab = "pci" | "risk";
+type AdminTab = "pci" | "risk" | "skid";
 
 // shortLabel keeps both tabs on one line on narrow viewports - see the same
 // fix on Home.tsx's WORKSPACE_TABS for why (full labels overflowed a 375px
@@ -19,6 +21,7 @@ type AdminTab = "pci" | "risk";
 const ADMIN_TABS: { id: AdminTab; label: string; shortLabel: string }[] = [
   { id: "pci", label: "Pavement Condition Index (PCI)", shortLabel: "PCI" },
   { id: "risk", label: "Risk Management", shortLabel: "Risk" },
+  { id: "skid", label: "Skid Resistance", shortLabel: "Skid" },
 ];
 
 export default function Admin() {
@@ -55,7 +58,7 @@ export default function Admin() {
           </div>
           <div className="leading-tight min-w-0">
             <h1 className="text-foreground text-sm font-bold leading-tight truncate">
-              Admin — PCI Survey Data
+              Admin — Survey Data
             </h1>
             <p className="text-muted-foreground text-[11px] leading-tight truncate">
               Airport Pavement Management System
@@ -94,7 +97,8 @@ export default function Admin() {
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <div className="max-w-4xl mx-auto space-y-6">
           <PublishBar />
-          <YearManager selectedYear={selectedYear} onSelectYear={handleSelectYear} />
+          {/* PCI years have nothing to do with skid surveys. */}
+          {activeTab !== "skid" && <YearManager selectedYear={selectedYear} onSelectYear={handleSelectYear} />}
 
           {activeTab === "pci" && (
             <>
@@ -120,6 +124,13 @@ export default function Admin() {
           )}
 
           {activeTab === "risk" && <RepairLogPanel year={selectedYear} />}
+
+          {activeTab === "skid" && (
+            <>
+              <SkidSurveyList />
+              <SkidImportPanel />
+            </>
+          )}
         </div>
       </div>
     </div>

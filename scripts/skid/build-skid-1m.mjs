@@ -518,7 +518,7 @@ function buildRunway(rw, perUnit, stationTable, csvPaths, used) {
 // ---------------------------------------------------------------- CLI
 
 function parseArgs(argv) {
-  const a = { csv: [], data: 'public/data', stations: join(HERE, 'skid-unit-stations-2026.json'), out: null, runway: null, check: false, jsonReport: null };
+  const a = { csv: [], data: 'public/data', stations: join(HERE, '../../src/config/skid-unit-stations-2026.json'), out: null, runway: null, check: false, jsonReport: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     const v = () => { if (i + 1 >= argv.length) throw new Error(`${k} needs a value`); return argv[++i]; };

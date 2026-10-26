@@ -6,12 +6,14 @@ import { governingFor, laneMu } from "@/lib/skid";
 import { indicesInUnit, unitXRange, xOf } from "@/lib/skid-trace";
 import { usePavementData } from "@/hooks/usePavementData";
 import { useSkidTrace } from "@/hooks/useSkidTrace";
+import type { SkidSurveyView } from "@/lib/skid-surveys";
 import type { LaneCode, RunwayId, SkidBasis, SkidRunwayData, SkidRunwayTrace } from "@/types/skid";
 import Mu from "./Mu";
 import { BASIS_LABEL, RUNWAY_BY_ID, fmtInt, muText, surveyDate, type SelectedUnit } from "./skid-ui";
 
 interface SkidUnitPanelProps {
-  data: Record<RunwayId, SkidRunwayData>;
+  survey: SkidSurveyView;
+  data: Partial<Record<RunwayId, SkidRunwayData>>;
   selected: SelectedUnit | null;
   basis: SkidBasis;
   onClose: () => void;
@@ -27,6 +29,13 @@ function MeterGrid({ rt, unit }: { rt: SkidRunwayTrace; unit: number }) {
   return (
     <div className="space-y-px">
       {rt.lanes.map((t) => {
+        if (t.measured === false)
+          return (
+            <div key={t.lane} className="flex items-center gap-2">
+              <span className="shrink-0 w-[68px] text-[10px] font-mono text-muted-foreground">{t.lane}</span>
+              <div className="flex-1 h-5 rounded-sm bg-secondary/40 flex items-center px-2 text-[9px] text-muted-foreground">Not measured</div>
+            </div>
+          );
         const idx = indicesInUnit(rt, t, unit);
         return (
           <div key={t.lane} className="flex items-center gap-2">
@@ -68,12 +77,12 @@ const OTHER_BASIS: Record<SkidBasis, SkidBasis> = { "152m": "10m", "10m": "152m"
 // Lanes left to right as seen in the test direction, with a gap at the centre line.
 const BAR_ORDER = [...LANE_ORDER.slice(0, 4), "CL", ...LANE_ORDER.slice(4)];
 
-export default function SkidUnitPanel({ data, selected, basis, onClose, onShowInProfile }: SkidUnitPanelProps) {
+export default function SkidUnitPanel({ survey: skidSurvey, data, selected, basis, onClose, onShowInProfile }: SkidUnitPanelProps) {
   const { unitsBySection } = usePavementData("2026");
   // Per-meter readings of the selected unit's runway (cached; loads once a unit is selected).
-  const { trace: rt } = useSkidTrace(selected?.runway ?? null);
+  const { trace: rt } = useSkidTrace(skidSurvey, selected?.runway ?? null);
 
-  const unit = selected ? data[selected.runway].units[selected.unit - 1] : null;
+  const unit = selected ? data[selected.runway]?.units[selected.unit - 1] ?? null : null;
   const g = unit ? governingFor(unit, basis) : null;
 
   const bars = useMemo(
@@ -91,11 +100,14 @@ export default function SkidUnitPanel({ data, selected, basis, onClose, onShowIn
   }
 
   const rw = RUNWAY_BY_ID[selected.runway];
-  const survey = data[selected.runway].survey;
+  const runwayData = data[selected.runway] as SkidRunwayData;
+  const survey = runwayData.survey;
   const cls = classifySkid(g?.mu ?? null);
   const other = governingFor(unit, OTHER_BASIS[basis]);
   const pci = unitsBySection[rw.unitKey]?.features.find((f) => f.properties["sampleUnit"] === selected.unit)?.properties;
   const pciScore = Number(pci?.["pci_score"]);
+  const measuredLaneCount = runwayData.lanes.filter((l) => l.measured !== false).length;
+  const noGpsLanes = runwayData.lanes.filter((l) => l.measured !== false && !l.gps).map((l) => l.code);
 
   return (
     <div className="p-4 space-y-4">
@@ -219,7 +231,7 @@ export default function SkidUnitPanel({ data, selected, basis, onClose, onShowIn
               onClick={() => {
                 if (!rt) return;
                 const [a, b] = unitXRange(rt, selected.unit);
-                onShowInProfile(g?.lane ?? unit.lanes.find((l) => l.mu_10m !== null)!.lane, [
+                onShowInProfile(g?.lane ?? unit.lanes.find((l) => l.mu_10m !== null)?.lane ?? "L3.0", [
                   Math.max(0, a - 150),
                   Math.min(rt.unit_bounds.last_end_m, b + 150),
                 ]);
@@ -251,10 +263,11 @@ export default function SkidUnitPanel({ data, selected, basis, onClose, onShowIn
         {unit.lanes_measured === 0 ? (
           <p>This unit lies outside the measured length (≈300 m at each runway end was not recorded).</p>
         ) : (
-          unit.lanes_measured < 8 && <p>Partial coverage: {unit.lanes_measured} of 8 lanes cross this unit.</p>
+          unit.lanes_measured < measuredLaneCount && <p>Partial coverage: {unit.lanes_measured} of {measuredLaneCount} measured lanes cross this unit.</p>
         )}
-        {selected.runway === "06-24" && unit.lanes_measured > 0 && (
-          <p>Lanes 6.0 m L/R had no GPS; their position uses the median start of the other lanes.</p>
+        {measuredLaneCount < 8 && <p>This survey measured {measuredLaneCount} of 8 lanes; the governing value comes from those lanes only.</p>}
+        {unit.lanes_measured > 0 && noGpsLanes.length > 0 && (
+          <p>Lane{noGpsLanes.length > 1 ? "s" : ""} {noGpsLanes.join(", ")} had no GPS; the position uses the median start of the other lanes.</p>
         )}
       </div>
 

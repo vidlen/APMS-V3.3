@@ -25,8 +25,10 @@ export interface SkidUnit {
 
 export interface SkidLaneMeta {
   code: LaneCode; side: "L" | "R"; offset_m: number; gps: boolean;
-  s0_m: number; s0_source: string; record_start_utc: string;
-  mean_mu_run: number; mean_speed_kmh: number; file: string;
+  /** s0_m, record_start_utc, mean_mu_run, mean_speed_kmh: null hanya kalau measured === false. */
+  s0_m: number | null; s0_source: string; record_start_utc: string | null;
+  mean_mu_run: number | null; mean_speed_kmh: number | null; file: string;
+  measured?: boolean;               // tidak ada = true (berkas seed)
 }
 
 export interface SkidSurvey {
@@ -48,6 +50,7 @@ export interface SkidRunwayData {
   geometry_source: string;
   lanes: SkidLaneMeta[];
   units: SkidUnit[];
+  source?: { kind: "seed" | "admin-import"; imported_at?: string; app_version?: string };
 }
 
 // ---------- per meter (BARU di v2): public/data/skid-<runway>-2026-1m.json
@@ -68,9 +71,10 @@ export interface SkidLaneTrace {
   lane: LaneCode;
   offset_m: number;
   file: string;                     // nama CSV asli
-  s0_m: number;                     // sama dengan lanes[].s0_m di berkas per unit
+  s0_m: number | null;              // sama dengan lanes[].s0_m di berkas per unit; null hanya kalau measured === false
   gps: boolean;
-  record_start_utc: string;
+  record_start_utc: string | null;
+  measured?: boolean;               // false = lajur tidak diunggah: mu/speed_kmh kosong, length_m = 0
   d_first: number;                  // DISTANCE baris pertama (1)
   length_m: number;                 // jumlah baris (2400 / 3000)
   time_first: string | null;

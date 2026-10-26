@@ -4,6 +4,7 @@ import { SEED_SAMPLE_UNIT_SOURCES } from "@/lib/sample-units";
 import type { GeoJSONFeatureCollection } from "@/lib/geojson-types";
 import type { RunwayId, SkidRunwayData } from "@/types/skid";
 import { RUNWAYS } from "@/components/skid/skid-ui";
+import type { SkidSurveyRunwayUrls, SkidSurveyView } from "@/lib/skid-surveys";
 
 export interface SkidRunwayBundle {
   data: SkidRunwayData;
@@ -44,12 +45,15 @@ export function useCachedLoad<T>(key: string | null, load: () => Promise<T>) {
   return { data: mine?.data, error: mine?.error, loading: key !== null && !mine };
 }
 
-async function loadAll(): Promise<Record<RunwayId, SkidRunwayBundle>> {
+/** Bundles of the runways a survey contains (a survey may hold only one runway). */
+export type SkidSurveyBundles = Partial<Record<RunwayId, SkidRunwayBundle>>;
+
+async function loadSurvey(survey: SkidSurveyView): Promise<SkidSurveyBundles> {
   const entries = await Promise.all(
-    RUNWAYS.map(async (rw) => {
+    RUNWAYS.filter((rw) => survey.runways[rw.id]).map(async (rw) => {
       const unitsUrl = SEED_SAMPLE_UNIT_SOURCES["2026"][rw.unitKey];
       const [data, units] = await Promise.all([
-        loadJson(`/data/skid-${rw.id}-2026.json`, SkidRunwaySchema),
+        loadJson((survey.runways[rw.id] as SkidSurveyRunwayUrls).unitsUrl, SkidRunwaySchema),
         fetch(unitsUrl).then((res) => {
           if (!res.ok) throw new Error(`${unitsUrl}: HTTP ${res.status}`);
           return res.json() as Promise<GeoJSONFeatureCollection>;
@@ -58,10 +62,11 @@ async function loadAll(): Promise<Record<RunwayId, SkidRunwayBundle>> {
       return [rw.id, { data, units }] as const;
     }),
   );
-  return Object.fromEntries(entries) as Record<RunwayId, SkidRunwayBundle>;
+  return Object.fromEntries(entries) as SkidSurveyBundles;
 }
 
-/** Per-unit skid data and unit polygons for both runways, loaded once. */
-export function useSkidData() {
-  return useCachedLoad("skid-units", loadAll);
+/** Per-unit skid data and unit polygons of one survey, loaded once per (survey, file URL). */
+export function useSkidData(survey: SkidSurveyView | null) {
+  const key = survey ? `skid-units:${survey.id}:${RUNWAYS.map((r) => survey.runways[r.id]?.unitsUrl ?? "-").join("|")}` : null;
+  return useCachedLoad(key, () => loadSurvey(survey as SkidSurveyView));
 }

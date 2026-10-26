@@ -2,6 +2,8 @@ import { ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SKID_THRESHOLDS, SKID_THRESHOLDS_95KMH } from "@/config/skid";
 import { useSkidTrace } from "@/hooks/useSkidTrace";
+import type { SkidSurveyView } from "@/lib/skid-surveys";
+import { SEED_SKID_SURVEY_ID } from "@/lib/skid-surveys";
 import type { RunwayId, SkidRunwayData } from "@/types/skid";
 import { RUNWAYS, fmtInt, surveyWindow } from "./skid-ui";
 
@@ -25,10 +27,14 @@ const FAA_REFS: [string, string, string][] = [
 const li = "text-xs text-muted-foreground leading-relaxed";
 const h = "panel-label mb-1.5";
 
-export default function SkidAbout({ data }: { data: Record<RunwayId, SkidRunwayData> }) {
-  const a = useSkidTrace("06-24");
-  const b = useSkidTrace("07L-25R");
+export default function SkidAbout({ survey, data }: { survey: SkidSurveyView; data: Partial<Record<RunwayId, SkidRunwayData>> }) {
+  const a = useSkidTrace(survey, survey.runways["06-24"] ? "06-24" : null);
+  const b = useSkidTrace(survey, survey.runways["07L-25R"] ? "07L-25R" : null);
   const recon = { "06-24": a.trace?.reconciliation, "07L-25R": b.trace?.reconciliation } as const;
+  const present = RUNWAYS.filter((r) => data[r.id]);
+  // The wording about the June 2026 campaign (file counts, run speeds, repeat rates) only fits the seed survey.
+  const isSeed = survey.id === SEED_SKID_SURVEY_ID && present.every((r) => survey.runways[r.id]?.source === "seed");
+  const runCount = present.reduce((n, r) => n + (data[r.id]?.lanes.filter((l) => l.measured !== false).length ?? 0), 0);
 
   return (
     <Collapsible className="bg-card border-t border-border">
@@ -43,8 +49,8 @@ export default function SkidAbout({ data }: { data: Record<RunwayId, SkidRunwayD
           <section>
             <h4 className={h}>Survey</h4>
             <ul className="space-y-1">
-              {RUNWAYS.map((r) => {
-                const s = data[r.id].survey;
+              {present.map((r) => {
+                const s = (data[r.id] as SkidRunwayData).survey;
                 return (
                   <li key={r.id} className={li}>
                     <span className="text-foreground font-medium">{r.label}</span>: {s.device} (BV-11), {s.speed_kmh} km/h, wet (self-wetting, 1 mm), test
@@ -53,7 +59,7 @@ export default function SkidAbout({ data }: { data: Record<RunwayId, SkidRunwayD
                 );
               })}
               <li className={li}>
-                Data cover June 2026 only and a single speed (65 km/h). This tab is a comparator: it is <strong className="text-foreground">not used in the risk scores</strong>{" "}
+                Survey: {survey.label}{isSeed ? ", June 2026 only" : ""}, a single speed (65 km/h). This tab is a comparator: it is <strong className="text-foreground">not used in the risk scores</strong>{" "}
                 (Likelihood, Frequency or Consequence).
               </li>
             </ul>
@@ -62,7 +68,7 @@ export default function SkidAbout({ data }: { data: Record<RunwayId, SkidRunwayD
           <section>
             <h4 className={h}>How the numbers are made</h4>
             <p className={li}>
-              Source: 16 Moventor CSV files (8 lanes × 2 runways), 1 m resolution. Each reading is placed along the axis of the sample-unit polygons with station = s0 −
+              Source: {runCount} Moventor CSV file{runCount === 1 ? "" : "s"}, 1 m resolution. Each reading is placed along the axis of the sample-unit polygons with station = s0 −
               DISTANCE, stations measured from threshold 24 / 25R (the test runs from unit 1 at 06 / 07L toward the last unit); s0 is the median GPS projection of that lane
               (the 6.0 m lanes of RWY 06/24 have no GPS and use the median of the other lanes). Each unit covers the stations from its own start up to the start of the
               unit before it, since stations fall as unit numbers rise. Per unit, μ 10 m is the mean of the readings inside the unit, μ 152 m is the mean over the
@@ -76,7 +82,7 @@ export default function SkidAbout({ data }: { data: Record<RunwayId, SkidRunwayD
             <p className={li}>
               The profile, per-meter heatmap, per-meter map lanes and the readings grid use every 1 m reading as recorded. A converter recomputes n, μ 10 m and μ 152 m for
               every unit-lane pair from those readings and compares them with the per-unit files:{" "}
-              {RUNWAYS.map((r, i) => {
+              {present.map((r, i) => {
                 const rc = recon[r.id];
                 return (
                   <span key={r.id}>
@@ -104,17 +110,23 @@ export default function SkidAbout({ data }: { data: Record<RunwayId, SkidRunwayD
             <h4 className={h}>Limits and notes</h4>
             <ul className="list-disc pl-4 space-y-1">
               <li className={li}>Only 65 km/h was surveyed (FAA par. 3-16 asks for 65 and 95 km/h), so microtexture is not described.</li>
+              {isSeed && (
               <li className={li}>
                 About 300 m at each runway end was not recorded. FAA par. 3-15 starts recording 152 m from the threshold, so roughly 150 m at each end that should have been
                 surveyed has no data.
               </li>
+            )}
               <li className={li}>Position is uncertain by about ±1 unit: lane start points differ by 6–11 m. Lane lines on the map use the nominal offset from the file name; GPS lateral position is only reported, because the antenna is not at the measuring wheel.</li>
+              {isSeed && (
               <li className={li}>
                 18–22% of the 1 m rows in each run repeat the previous reading (device sampling). They are kept, so n = 10 is not 10 independent samples.
               </li>
+            )}
+              {isSeed && (
               <li className={li}>
                 Run mean speeds are 64.6–67.1 km/h, inside the ±5 km/h tolerance. A few readings on RWY 07L/25R fall outside 60–70 km/h (see the run list).
               </li>
+            )}
               <li className={li}>Values within ±0.06 of a threshold are within device repeatability (App. 3 par. 1.a(5)) and are not clearly above or below it.</li>
               <li className={li}>
                 The third-based and segment figures use fixed 152.4 m steps from the start of recording, as on the device printout; the last segment is partial.
