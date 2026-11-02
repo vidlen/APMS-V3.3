@@ -38,8 +38,9 @@ function loadFc(relativePath: string): GeoJSONFeatureCollection {
 }
 
 /* =============================================================================
- * Fixtures - units 36, 285, 80 (265, 16, 221 before the 21 Oct 2026 renumbering; the old
- * spec and PAVER still use those), real 2025-survey distress records (same raw
+ * Fixtures - units 265, 16, 221. These are also the PAVER/Excel numbers: since the 2 Nov 2026 payload
+ * flip (scripts/balik-muatan-pci.mjs, docs/penomoran-unit.md) web unit n carries Excel unit n for
+ * 2025 and 2026. Real 2025-survey distress records (same raw
  * quantities and deduct values as metode-b-r1-spec.md section 11.2's
  * "old-spec conversion" table), relabelled onto a synthetic 2026-vs-2025
  * comparison so tests 5/6/9 below can exercise the observed-rate path too.
@@ -62,8 +63,8 @@ function baseInput(overrides: Partial<UnitRiskInput>): UnitRiskInput {
   };
 }
 
-const UNIT_36: UnitRiskInput = baseInput({
-  unitNumber: 36,
+const UNIT_265: UnitRiskInput = baseInput({
+  unitNumber: 265,
   zone: 'ujung',
   distresses: [
     { type: 'RAVELING', severity: 'High', quantity: 13.81, quantityUnits: 'SqM', deduct: 28.4 },
@@ -75,8 +76,8 @@ const UNIT_36: UnitRiskInput = baseInput({
   previousSurveyYear: 2025,
 });
 
-const UNIT_285: UnitRiskInput = baseInput({
-  unitNumber: 285,
+const UNIT_16: UnitRiskInput = baseInput({
+  unitNumber: 16,
   zone: 'ujung',
   distresses: [
     { type: 'RAVELING', severity: 'Medium', quantity: 43.74, quantityUnits: 'SqM', deduct: 18.0 },
@@ -88,8 +89,8 @@ const UNIT_285: UnitRiskInput = baseInput({
   previousSurveyYear: 2025,
 });
 
-const UNIT_80: UnitRiskInput = baseInput({
-  unitNumber: 80,
+const UNIT_221: UnitRiskInput = baseInput({
+  unitNumber: 221,
   zone: 'tengah',
   distresses: [
     { type: 'PATCHING', severity: 'Low', quantity: 3.62, quantityUnits: 'SqM', deduct: 2.7 },
@@ -106,10 +107,10 @@ const UNIT_80: UnitRiskInput = baseInput({
  * ========================================================================== */
 
 test('2. PATCHING contributes to TDV and coverage but never contributes to FODp C', () => {
-  // Section 6: unit 80's (221 before the renumbering) dominant distress by deduct is now PATCHING (2.7 > 1.0).
-  assert.equal(totalDeductValue(UNIT_80.distresses), 3.7);
-  assert.ok(coveragePct(UNIT_80.distresses) > 0);
-  const result = scoreUnit(UNIT_80);
+  // Section 6: unit 221's dominant distress by deduct is now PATCHING (2.7 > 1.0).
+  assert.equal(totalDeductValue(UNIT_221.distresses), 3.7);
+  assert.ok(coveragePct(UNIT_221.distresses) > 0);
+  const result = scoreUnit(UNIT_221);
   assert.equal(result.dominantDistress, 'PATCHING');
   // PATCHING is not one of the two FODp variables, so a High-severity
   // PATCHING-only unit still floors at FOD state 1 / C=1.
@@ -128,8 +129,8 @@ test('2b. a runway unit with High-severity raveling takes C solely from FODp', (
 });
 
 test('2c. scoreUnits with no source argument uses the pci variant', () => {
-  const [withDefault] = scoreUnits([UNIT_285]);
-  const [withPci] = scoreUnits([UNIT_285], 'pci');
+  const [withDefault] = scoreUnits([UNIT_16]);
+  const [withPci] = scoreUnits([UNIT_16], 'pci');
   assert.equal(withDefault.likelihood, withPci.likelihood);
   assert.equal(withDefault.likelihoodSource, 'pci');
 });
@@ -201,9 +202,9 @@ test('4c. a unit from a dummy-PCI branch still gets a valid L, C, R and band und
   assert.throws(() => scoreUnit(dummyPciUnit, 'pci'));
 });
 
-test('5. unit 285 (was 16) is memburuk_cepat, unit 36 (was 265) is stabil', () => {
-  assert.equal(scoreUnit(UNIT_285).observedRateClass, 'memburuk_cepat');
-  assert.equal(scoreUnit(UNIT_36).observedRateClass, 'stabil');
+test('5. unit 16 is memburuk_cepat, unit 265 is stabil', () => {
+  assert.equal(scoreUnit(UNIT_16).observedRateClass, 'memburuk_cepat');
+  assert.equal(scoreUnit(UNIT_265).observedRateClass, 'stabil');
 });
 
 /* =============================================================================
@@ -211,7 +212,7 @@ test('5. unit 285 (was 16) is memburuk_cepat, unit 36 (was 265) is stabil', () =
  * ========================================================================== */
 
 test('6. R = L x F x C exactly, with no intermediate rounding', () => {
-  const result = scoreUnit(UNIT_36);
+  const result = scoreUnit(UNIT_265);
   assert.equal(result.riskScore, result.likelihood * result.frequency * result.consequence);
 });
 
@@ -234,7 +235,7 @@ test('8. ICAO cell 4B lands in the intolerable zone', () => {
 });
 
 test('9. an L, F or C override wins outright and is recorded in trace', () => {
-  const overridden = scoreUnit({ ...UNIT_36, overrides: { likelihood: 10, frequency: 10, consequence: 100 } });
+  const overridden = scoreUnit({ ...UNIT_265, overrides: { likelihood: 10, frequency: 10, consequence: 100 } });
   assert.equal(overridden.likelihood, 10);
   assert.equal(overridden.frequency, 10);
   assert.equal(overridden.consequence, 100);
@@ -250,7 +251,7 @@ test('9. an L, F or C override wins outright and is recorded in trace', () => {
  * ========================================================================== */
 
 test('6b. R = L x F x C survives non-exact floating point products (e.g. 0.2 x 3 x 40)', () => {
-  const result = scoreUnit({ ...UNIT_36, overrides: { likelihood: 0.2, frequency: 3, consequence: 40 } });
+  const result = scoreUnit({ ...UNIT_265, overrides: { likelihood: 0.2, frequency: 3, consequence: 40 } });
   assert.ok(Math.abs(result.riskScore - 24) < 1e-9);
 });
 
@@ -311,13 +312,14 @@ test('12. the B-R3 pinned units land on their documented degrees', () => {
     return result.band.degree;
   }
 
-  // Unit numbers follow the 21 Oct 2026 renumbering (unit 1 at 06 / 07L): 285 -> 16, 16 -> 285, 300 -> 1
-  // on 06/24 and 302 -> 59, 261 -> 100 on 07L/25R; same survey payload at the same place.
+  // Unit numbers follow the 2 Nov 2026 payload flip (docs/penomoran-unit.md): the 06/24 2026 and all
+  // 07L/25R payloads moved from unit k to N + 1 - k (06/24 2026: 285 -> 16, 1 -> 300; 07L/25R: 59 -> 302,
+  // 100 -> 261). 06/24 2025 did not move. Web unit n is now Excel/PAVER unit n for 2025-2026.
   assert.equal(degreeFor('06/24', 2025, 2024, 16, 'pci'), 1);
-  assert.equal(degreeFor('06/24', 2026, 2025, 285, 'pci'), 3);
-  assert.equal(degreeFor('06/24', 2026, 2025, 1, 'pci'), 1);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 59, 'pci'), 3);
-  assert.equal(degreeFor('07L/25R', 2026, 2025, 100, 'pci'), 3);
+  assert.equal(degreeFor('06/24', 2026, 2025, 16, 'pci'), 3);
+  assert.equal(degreeFor('06/24', 2026, 2025, 300, 'pci'), 1);
+  assert.equal(degreeFor('07L/25R', 2026, 2025, 302, 'pci'), 3);
+  assert.equal(degreeFor('07L/25R', 2026, 2025, 261, 'pci'), 3);
 });
 
 test('13. B-R3 acceptance fixtures pin FODp, C, F, R, degree, and ICAO cell', () => {
@@ -332,17 +334,17 @@ test('13. B-R3 acceptance fixtures pin FODp, C, F, R, degree, and ICAO cell', ()
   }
 
   const cases: Array<[string, number, number, number, number, number, number, number, number, number, number, string]> = [
-    // Unit numbers mapped with id_new = N + 1 - id_old (06/24: 285, 36, 80, 86, 16, 258, 300 -> 16, 265, 221, 215, 285, 43, 1;
-    // 07L/25R: 302, 261 -> 59, 100); expected values are unchanged.
+    // After the 2 Nov 2026 payload flip the 2026 rows moved to N + 1 - k (06/24 2026: 285, 43, 1 -> 16, 258, 300;
+    // 07L/25R 2026: 59, 100 -> 302, 261); 06/24 2025 rows did not move. Expected values are unchanged.
     ['06/24', 2025, 2024, 16, 77.02, 40, 4, 7, 3, 4.2, 1, '2D'],
     ['06/24', 2025, 2024, 265, 66.59, 40, 4, 7, 3, 10.5, 1, '2D'],
     ['06/24', 2025, 2024, 221, 96.32, 10, 2, 1, 2, 0.2, 1, '1E'],
     ['06/24', 2025, 2024, 215, 97.5, 10, 2, 1, 6, 0.6, 1, '2E'],
-    ['06/24', 2026, 2025, 285, 45.6, 60, 5, 15, 6, 90, 3, '3C'],
-    ['06/24', 2026, 2025, 43, 59.9, 40, 4, 7, 3, 10.5, 1, '2D'],
-    ['06/24', 2026, 2025, 1, 100, 0, 1, 1, 0.5, 0.05, 1, '1E'],
-    ['07L/25R', 2026, 2025, 59, 49.2, 70, 6, 15, 6, 90, 3, '3C'],
-    ['07L/25R', 2026, 2025, 100, 50.6, 50, 5, 15, 6, 90, 3, '3C'],
+    ['06/24', 2026, 2025, 16, 45.6, 60, 5, 15, 6, 90, 3, '3C'],
+    ['06/24', 2026, 2025, 258, 59.9, 40, 4, 7, 3, 10.5, 1, '2D'],
+    ['06/24', 2026, 2025, 300, 100, 0, 1, 1, 0.5, 0.05, 1, '1E'],
+    ['07L/25R', 2026, 2025, 302, 49.2, 70, 6, 15, 6, 90, 3, '3C'],
+    ['07L/25R', 2026, 2025, 261, 50.6, 50, 5, 15, 6, 90, 3, '3C'],
   ];
   for (const [branch, year, previousYear, unit, pci, index, state, consequence, frequency, riskScore, degree, cell] of cases) {
     const result = resultFor(branch, year, previousYear, unit);

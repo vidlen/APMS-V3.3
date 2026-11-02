@@ -17,7 +17,7 @@
  *   same value, same reasoning: it's the 10m x 60m NOMINAL design area PAVER
  *   itself divides by for density, not each unit's own surveyed polygon
  *   (586-604 m2) - verified against the fixture figures in metode-b-spec_4.md
- *   (unit 16's - unit 285 since the 21 Oct 2026 renumbering - Raveling High 4.92 m2 only reproduces its published density
+ *   (unit 16's 2025-survey Raveling High 4.92 m2 - unit 16 in the web and in PAVER alike - only reproduces its published density
  *   0.820 when divided by a flat 600 m2).
  *
  * QUANTITY UNITS (section 3.2, 4.1):

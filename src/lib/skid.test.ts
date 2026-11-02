@@ -63,8 +63,8 @@ test("C. penomoran unit skid = penomoran berkas unit web", () => {
     const units = RW[rw].units;
     assert.ok(units[0].centroid_lonlat[0] < units[units.length - 1].centroid_lonlat[0], `${rw}: unit 1 harus di ujung barat (06 / 07L)`);
   }
-  const u360 = (read("runway-07L-25R-units-2026.json") as { features: Feature[] }).features.find((f) => f.properties.sampleUnit === 360);
-  assert.equal(u360?.properties.pci_score, 93, "07L/25R unit 360 di berkas web harus PCI 93 (ujung 25R; unit 1 sebelum penomoran ulang 21 Okt 2026)");
+  const u1 = (read("runway-07L-25R-units-2026.json") as { features: Feature[] }).features.find((f) => f.properties.sampleUnit === 1);
+  assert.equal(u1?.properties.pci_score, 93, "07L/25R unit 1 di berkas web harus PCI 93 (ujung 07L; muatan dibalik 2 Nov 2026)");
 });
 
 test("D. angka penerimaan", () => {

@@ -26,9 +26,9 @@ const runwaySurveyFiles = [
   { branchId: '07L/25R', fileStem: 'runway-07L-25R', years: [2020, 2021, 2022, 2023, 2024, 2025, 2026] },
 ] as const;
 
-const allowedNegativePciCorrelations = new Set([
-  '06/24:2025-2026',
-]);
+// Empty since the 2 Nov 2026 payload flip: 06/24 2025-2026 went from -0.261 to +0.767
+// (docs/penomoran-unit.md, "Arah muatan PCI").
+const allowedNegativePciCorrelations = new Set<string>();
 
 function featuresBySampleUnit(fc: GeoJSONFeatureCollection) {
   return new Map(fc.features.map((feature) => [feature.properties.sampleUnit, feature]));
@@ -62,14 +62,15 @@ test('pciIsReal is true only for 06/24 and 07L/25R', () => {
   assert.equal(isPciReal('Apron A'), false);
 });
 
-// Unit 1 is the threshold-06 end and unit 300 the threshold-24 end (renumbered 21 Oct 2026). The Markov
-// workbook and PAVER keep the old numbering, so their unit k is unit 301 - k here: docs/penomoran-unit.md.
-test('RWY 06/24 endpoint survey payloads: the values stay at the same threshold after the renumbering', () => {
+// Unit 1 is the threshold-06 end and unit 300 the threshold-24 end (renumbered 21 Oct 2026). The 2026 payload
+// was flipped on 2 Nov 2026 to agree with the GPS-positioned LCMS texture; 2023-2025 did not move.
+// docs/penomoran-unit.md has the details.
+test('RWY 06/24 endpoint survey payloads sit at the threshold the GPS anchor puts them', () => {
   const expected = [
     { year: 2023, rwy06Pci: 100, rwy24Pci: 100 },
     { year: 2024, rwy06Pci: 100, rwy24Pci: 100 },
     { year: 2025, rwy06Pci: 99.0000007152557, rwy24Pci: 100 },
-    { year: 2026, rwy06Pci: 100, rwy24Pci: 99 },
+    { year: 2026, rwy06Pci: 99, rwy24Pci: 100 },
   ];
 
   for (const { year, rwy06Pci, rwy24Pci } of expected) {
@@ -83,10 +84,10 @@ test('RWY 06/24 endpoint survey payloads: the values stay at the same threshold 
   const fc2026 = loadFc('../../public/data/runway-06-24-units-2026.json');
   const unit1 = fc2026.features.find((feature) => feature.properties.sampleUnit === 1);
   const unit300 = fc2026.features.find((feature) => feature.properties.sampleUnit === 300);
-  assert.deepEqual(unit1?.properties.distresses, []);
-  assert.deepEqual(unit300?.properties.distresses, [
+  assert.deepEqual(unit1?.properties.distresses, [
     { type: 'Raveling', severity: 'Low', quantity: 0.06, quantityUnits: 'SqM', deduct: 1 },
   ]);
+  assert.deepEqual(unit300?.properties.distresses, []);
 });
 
 test('runway geometry for each sample unit is identical across every survey year on its branch', () => {
@@ -191,7 +192,7 @@ test('consecutive runway survey years have positive PCI correlation except docum
 });
 
 test('polygonAreaM2 on a real 06/24 unit polygon lands in the surveyed 560-604 m2 range', () => {
-  // Unit 300 (the runway-24 end; unit 1 before the 21 Oct 2026 renumbering) is a
+  // Unit 300 (the runway-24 end) is a
   // real edge square smaller than the ~604 m2 interior nominal - 567.84 m2, not a
   // bug. Range widened to cover it.
   const fc = loadFc('../../public/data/runway-06-24-units-2025.json');

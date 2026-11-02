@@ -30,7 +30,13 @@ Rumus ini membalik dirinya sendiri, jadi `id_lama = N + 1 - id_baru`. Tabel leng
 
 ## Yang dipakai untuk menyandingkan dengan sumber lain
 
-Berkas Excel/PAVER sumber, workbook Markov, dan lampiran data skripsi tetap memakai **penomoran lama** (unit 1 di ujung 24 dan 25R). Baca nomor unit di web lewat tabel di atas. Nomor acuan di spesifikasi dan brief lama, misalnya unit 16, 221, 258, 265 (RWY 06/24) dan unit 59, 100, 301 (RWY 07L/25R), juga penomoran lama.
+Sejak pembalikan muatan 2 November 2026 (bagian "Arah muatan PCI"), **nomor unit Excel/PAVER survei 2025 dan 2026 sama dengan nomor unit web**, untuk kedua runway. Unit 1 di berkas sumber ternyata secara fisik berada di ujung 06 / 07L, searah survei LCMS. Contoh: unit 16 RWY 06/24 2026 (PCI 45,6 di gambar laporan) adalah unit 16 di web.
+
+- RWY 06/24: terverifikasi dari gambar laporan PCI 2026 (unit 1–20) dan nilai acuan 2025 (unit 16 = 77,02, unit 265 = 66,59, unit 221 = 96,32).
+- RWY 07L/25R: disimpulkan dari catatan penomoran sebelumnya. Cocokkan satu unit dengan Excel sebelum menyandingkan per nomor.
+- Paket `BBI_RWY0624` (MATLAB/ProFAA) masih berlabel lama: `unit_web = 301 − unit_lama`. Jalankan `node konversi_unit_web.mjs` di folder paket untuk mendapat `hasil_bbi/*_web.csv`.
+- Paket `TEKSTUR_2026` sudah memakai penomoran web.
+- Nomor acuan di spesifikasi dan brief lama (unit 16, 221, 258, 265 pada 06/24; unit 59, 100, 301 pada 07L/25R) ditulis pada berbagai konvensi. Cocokkan lewat nilai PCI, jangan lewat nomor.
 
 ## Apa yang berubah dan tidak
 
@@ -63,3 +69,24 @@ Kalau lebih suka stasiun dihitung dari ujung 06 / 07L (searah nomor unit), itu k
 
 - Tautan yang pernah dibagikan, misalnya `?tab=skid&rw=07L-25R&unit=301`, kini menunjuk ke lokasi lain.
 - Edit skor per unit di Admin (`unitScores`) dan GeoJSON unit yang diunggah (`uploadedUnits`) disimpan di localStorage browser dengan nomor lama. Kalau ada, periksa atau reset.
+
+- Hal yang sama berlaku setelah pembalikan muatan 2 November: edit `unitScores` untuk 06/24 2026 dan 07L/25R yang sudah dipublikasikan ke Blob kini menempel pada muatan unit seberang. Kalau ada, periksa di halaman Admin.
+
+## Arah muatan PCI (2 November 2026)
+
+Penomoran ulang 21 Oktober hanya memindahkan label; muatan PCI tetap di lokasi yang diasumsikan laporan survei (unit 1 di ujung 24 / 25R). Asumsi itu terbalik. Jangkarnya CSV "LCMS Texture Processed" Juni 2026, dari survei LCMS yang sama dengan PCI 2026 dan berposisi GPS. Raveling menaikkan MPD, jadi Spearman MPD lawan luas raveling per unit harus positif.
+
+| Berkas | Spearman sebelum | Sesudah dibalik |
+|---|---|---|
+| 06/24 2025 | +0,62 | −0,24 (tidak dibalik) |
+| 06/24 2026 | −0,24 | +0,68 |
+| 07L/25R 2025 | ≈0 | +0,61 |
+| 07L/25R 2026 | ≈0 | +0,66 |
+
+Pendukung lain: pola sama di bagian tengah runway; korelasi PCI 06/24 2025 lawan 2026 naik dari −0,26 ke +0,77; mobil LCMS mulai dari ujung 06 / 07L.
+
+Dibalik (`muatan unit k ← muatan unit N + 1 − k`, N = 300 atau 360; geometri, `id`, `square_id`, `sampleUnit` tetap): `runway-06-24-units-2026.json` dan `runway-07L-25R-units-2020` sampai `2026`. Tidak dibalik: 06/24 2025 (sudah searah GPS), 06/24 2023–2024 (nyaris tanpa kerusakan), semua data skid dan tekstur.
+
+Skrip: `node scripts/balik-muatan-pci.mjs` (cek), `--write` (tulis), `--undo --write` (kembalikan), opsional `--tekstur-06-24 <csv> --tekstur-07L-25R <csv>` untuk uji jangkar. Berkas yang sudah dibalik bertanda `muatan_pci_dibalik` di tingkat atas, jadi tidak terbalik dua kali. Uji permanen: `src/lib/pci-orientation.test.ts`.
+
+`runway-07L-25R-units-2024.json` berisi salinan PCI 2025 yang dibulatkan satu desimal, padahal survei 2024 runway itu tidak ada. Di luar lingkup pembalikan.
