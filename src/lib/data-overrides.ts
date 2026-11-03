@@ -3,6 +3,7 @@ import type { BranchRole, Detectability, DistressSeverityLevel } from "@/config/
 import type { SectionData } from "@/lib/pci-utils";
 import type { RepairLogRecord } from "@/lib/repair-log";
 import type { LaneCode, RunwayId } from "@/types/skid";
+import type { BbiFileRole } from "@/types/bbi";
 
 export interface AddedYearMeta {
   id: string;
@@ -69,6 +70,24 @@ export interface SkidSurveyEntry {
   runways: Partial<Record<RunwayId, SkidSurveyRunwayEntry>>;
 }
 
+// One runway of an admin-imported BBI survey (Admin -> Roughness (BBI)). Same idea as
+// SkidSurveyRunwayEntry: the JSON files live in Vercel Blob, only their URLs are kept here.
+export interface BbiSurveyRunwayEntry {
+  unitsUrl: string;
+  traceUrl: string;
+  /** url is null for the per-point CSV: at 7 MB it exceeds the 5 MB upload limit, so only its hash is recorded. */
+  rawCsv: { role: BbiFileRole; name: string; url: string | null; sha256: string; bytes: number }[];
+  date: string; // "YYYY-MM-DD"
+  lines: string[]; // line codes
+  importedAt: string; // ISO
+}
+
+export interface BbiSurveyEntry {
+  id: string; // "2026-06", "2027-06", ...
+  label: string; // "Jun 2026"
+  runways: Partial<Record<RunwayId, BbiSurveyRunwayEntry>>;
+}
+
 // Everything an admin can change, stored as a compact set of deltas rather
 // than full data copies — base survey files (megabytes) are never
 // duplicated into localStorage, only the edits on top of them.
@@ -91,6 +110,8 @@ export interface DataOverrides {
   repairLog?: RepairLogRecord[];
   /** Admin-imported skid surveys (manifest only, see SkidSurveyRunwayEntry). The June 2026 seed is virtual and not stored here. */
   skidSurveys?: Record<string, SkidSurveyEntry>;
+  /** Admin-imported BBI surveys (manifest only, see BbiSurveyRunwayEntry). The June 2026 seed is virtual and not stored here. */
+  bbiSurveys?: Record<string, BbiSurveyEntry>;
 }
 
 // Merges a partial patch into an existing override object. A key explicitly
@@ -154,6 +175,7 @@ export function normalizeOverrides(raw: unknown): DataOverrides {
     sectionInventory: parsed.sectionInventory ?? base.sectionInventory,
     repairLog: parsed.repairLog as RepairLogRecord[] | undefined,
     skidSurveys: parsed.skidSurveys,
+    bbiSurveys: parsed.bbiSurveys,
   };
 }
 

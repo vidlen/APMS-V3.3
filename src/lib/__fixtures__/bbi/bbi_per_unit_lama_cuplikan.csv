@@ -1,0 +1,6 @@
+unit;stasiun_awal_m;stasiun_akhir_m;jumlah_garis;bbi_maks;zona;garis_penentu;h_cm;panjang_bump_m;straightedge_m;catatan
+1;0,0;9,7;0;;;;;;;tidak tercakup
+2;9,5;19,7;0;;;;;;;tidak tercakup
+3;19,5;29,7;0;;;;;;;tidak tercakup
+4;29,5;39,7;2;0,1147;Acceptable;RWY0624_P02_L;0,37;2,00;5,00;awal lintasan (straightedge belum utuh)
+5;39,5;49,7;2;0,2442;Acceptable;RWY0624_P02_L;0,78;2,00;14,50;awal lintasan (straightedge belum utuh)
