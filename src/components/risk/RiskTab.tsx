@@ -188,8 +188,17 @@ export default function RiskTab({
               selectedUnit={selectedUnit}
               onSelectUnit={setSelectedUnit}
               highlight={highlight}
+              selectedCell={colorBy === "icao" ? selectedCell : null}
               colorBy={colorBy}
             />
+            {colorBy === "icao" && selectedCell && (
+              <button
+                onClick={() => setSelectedCell(null)}
+                className="panel-surface absolute top-3 right-3 z-10 h-8 px-3 rounded-md text-xs font-medium text-primary"
+              >
+                Cell {selectedCell} &middot; Clear
+              </button>
+            )}
           </div>
 
           <aside className="shrink-0 md:w-[440px] max-h-[50%] md:max-h-none overflow-y-auto custom-scrollbar bg-card border-t md:border-t-0 md:border-l border-border">
@@ -257,6 +266,9 @@ export default function RiskTab({
                     Click a row to highlight its units on the map, or click a unit for its score.
                   </p>
                 </div>
+                {colorBy === "icao" && (
+                  <IcaoMatrixPanel results={results} selectedCell={selectedCell} onSelectCell={handleSelectCell} />
+                )}
               </div>
             )}
           </aside>

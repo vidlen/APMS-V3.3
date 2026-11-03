@@ -24,6 +24,8 @@ interface RiskMapViewProps {
   onSelectUnit: (unit: number | null) => void;
   /** Legend row picked (degree number or ICAO zone name) - other units are dimmed. */
   highlight: string | null;
+  /** ICAO cell picked in the matrix - units outside it are dimmed. */
+  selectedCell: string | null;
   /** Fill by Fine-Kinney degree colour or by ICAO zone colour. */
   colorBy: "degree" | "icao";
 }
@@ -36,7 +38,7 @@ function withAlpha(hex: string, alpha: number): number[] {
 // Sample units coloured by Fine-Kinney degree or ICAO zone. Same base map
 // and tooltip look as MapView (the PCI map), but kept separate: MapView's
 // section/branch drill-down and PCI styling don't apply here.
-export default function RiskMapView({ units, results, selectedUnit, onSelectUnit, highlight, colorBy }: RiskMapViewProps) {
+export default function RiskMapView({ units, results, selectedUnit, onSelectUnit, highlight, selectedCell, colorBy }: RiskMapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<OlMap | null>(null);
   const layerRef = useRef<VectorLayer | null>(null);
@@ -53,7 +55,7 @@ export default function RiskMapView({ units, results, selectedUnit, onSelectUnit
       const unit = feature.get("sampleUnit") as number;
       const r = byUnit.get(unit);
       const key = r && (colorBy === "icao" ? r.icao.zone : String(r.band.degree));
-      const dimmed = highlight !== null && key !== highlight;
+      const dimmed = (highlight !== null && key !== highlight) || (selectedCell !== null && r?.icao.cell !== selectedCell);
       const isSelected = unit === selectedUnit;
       const color = r && (colorBy === "icao" ? r.icao.zoneColor : r.band.color);
       return new Style({
@@ -72,7 +74,7 @@ export default function RiskMapView({ units, results, selectedUnit, onSelectUnit
         }),
       });
     },
-    [byUnit, selectedUnit, highlight, colorBy],
+    [byUnit, selectedUnit, highlight, selectedCell, colorBy],
   );
 
   useEffect(() => {
