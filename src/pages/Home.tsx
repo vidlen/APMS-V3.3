@@ -13,6 +13,7 @@ import PciScalePanel from "@/components/PciScalePanel";
 import AdminHeaderControl from "@/components/admin/AdminHeaderControl";
 import RiskTab from "@/components/risk/RiskTab";
 import SkidTab from "@/components/skid/SkidTab";
+import BbiTab from "@/components/bbi/BbiTab";
 import { usePavementData } from "@/hooks/usePavementData";
 import { usePciScalePanel } from "@/hooks/usePciScalePanel";
 import { countByCondition, pciCategories, parsePCIValue, type SectionData } from "@/lib/pci-utils";
@@ -20,21 +21,23 @@ import type { SurveyYear } from "@/lib/survey-years";
 import { useData, useRepairLog } from "@/lib/data-store";
 import { aggregateRepairLog } from "@/lib/repair-log";
 import { SKID_URL_KEYS } from "@/lib/skid-url";
+import { BBI_URL_KEYS } from "@/lib/bbi-url";
 
 // Raised from 640 after measuring the actual content: the workspace tab
-// bar's full labels alone need ~742px of scrollWidth (774px of viewport
-// once its px-4 padding is counted) - 768 still left it scrollable with no
-// affordance. 800 gives that a safety margin. 640 was "phone vs. not
-// phone," not "does the desktop chrome actually fit."
+// bar's full labels alone need 729px of scrollWidth (761px of viewport
+// once its px-4 padding is counted; re-measured with the fourth tab,
+// Roughness (BBI), 3 Nov 2026). 800 gives that a safety margin. 640 was
+// "phone vs. not phone," not "does the desktop chrome actually fit."
 // Keep in sync with src/hooks/useNarrowViewport.ts's copy of this constant.
 const NARROW_BREAKPOINT = 800;
 const MIN_LOADING_SCREEN_MS = 2000;
 
-type WorkspaceTab = "pci" | "risk" | "skid";
+type WorkspaceTab = "pci" | "skid" | "bbi" | "risk";
 
 const WORKSPACE_TABS: { id: WorkspaceTab; label: string; shortLabel: string; placeholderCaption?: string }[] = [
   { id: "pci", label: "Pavement Condition Index (PCI)", shortLabel: "PCI" },
   { id: "skid", label: "Skid Resistance", shortLabel: "Skid" },
+  { id: "bbi", label: "Roughness (BBI)", shortLabel: "BBI" },
   {
     id: "risk",
     label: "Risk Management",
@@ -84,16 +87,27 @@ export default function Home() {
   const bandCounts = useMemo(() => countByCondition(sections), [sections]);
   const { docked: panelDocked, pos: panelPos, setDocked: setPanelDocked, setPos: setPanelPos } = usePciScalePanel();
 
-  // Mirror the tab in the address bar (replaceState: no history entries) and drop the Skid keys
-  // once another tab is shown. history.state is passed through so the router's own state survives.
+  // Mirror the tab in the address bar (replaceState: no history entries) and drop the view keys of
+  // the tabs not shown. history.state is passed through so the router's own state survives.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (activeTab === "pci") p.delete("tab");
     else p.set("tab", activeTab);
-    if (activeTab !== "skid") SKID_URL_KEYS.forEach((k) => p.delete(k));
+    const own: readonly string[] = activeTab === "skid" ? SKID_URL_KEYS : activeTab === "bbi" ? BBI_URL_KEYS : [];
+    [...SKID_URL_KEYS, ...BBI_URL_KEYS].filter((k) => !own.includes(k)).forEach((k) => p.delete(k));
     const q = p.toString().replace(/%2C/g, ",");
     window.history.replaceState(window.history.state, "", q ? `?${q}` : window.location.pathname);
   }, [activeTab]);
+
+  // Skid and Roughness share key names (rw, unit, x, ...) and each reads its first view from the URL when it
+  // mounts, so a click must clear those keys first or the next tab would pick up the previous tab's unit.
+  const switchTab = useCallback((tab: WorkspaceTab) => {
+    const p = new URLSearchParams(window.location.search);
+    [...SKID_URL_KEYS, ...BBI_URL_KEYS].forEach((k) => p.delete(k));
+    const q = p.toString().replace(/%2C/g, ",");
+    window.history.replaceState(window.history.state, "", q ? `?${q}` : window.location.pathname);
+    setActiveTab(tab);
+  }, []);
 
   // Keep the branded splash on screen for a minimum window so it doesn't
   // just flash by when data loads quickly off localhost.
@@ -322,7 +336,7 @@ export default function Home() {
           {WORKSPACE_TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => switchTab(tab.id)}
               aria-selected={activeTab === tab.id}
               role="tab"
               className={`shrink-0 py-2.5 font-condensed text-[12.5px] font-semibold tracking-[.13em] uppercase border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
@@ -511,6 +525,11 @@ export default function Home() {
         // Independent of the survey-year selector: skid data is a fixed June 2026 survey.
         <div className="relative flex-1 min-h-0 bg-background">
           <SkidTab />
+        </div>
+      ) : activeTab === "bbi" ? (
+        // Independent of the survey-year selector, like Skid: BBI data has its own survey list.
+        <div className="relative flex-1 min-h-0 bg-background">
+          <BbiTab />
         </div>
       ) : (
         <div className="relative flex-1 flex items-center justify-center min-h-0 bg-background">

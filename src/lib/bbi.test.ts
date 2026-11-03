@@ -79,6 +79,13 @@ test("profileRows: jendela sempit titik asli, jendela lebar per bin, titik flagg
   assert.equal(wide.filter((r) => r[line.line] !== undefined).length, 3, "3 bin 1 m");
   assert.equal(wide.find((r) => r[`f_${line.line}`] !== undefined)?.x, 11.5);
 
+  // Titik flagged di luar tengah bin: baris sendiri dengan x asli, garisnya memakai nilai bin.
+  const offCentre = profileRows([{ ...line, flagged: [{ i: 4, zone: "Excessive" }] }], [0, 700]);
+  const flaggedRow = offCentre.find((r) => r[`f_${line.line}`] !== undefined);
+  assert.equal(flaggedRow?.x, 11);
+  assert.equal(flaggedRow?.[`f_${line.line}`], 0.3);
+  assert.equal(flaggedRow?.[line.line], 1.2);
+
   const other = { ...line, line: "P02_L", x0_from_06_m: 10.01, flagged: [] };
   const merged = profileRows([line, other], [0, 100]);
   const row = merged.find((r) => r.x === 11.5);

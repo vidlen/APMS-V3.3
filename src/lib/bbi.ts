@@ -104,6 +104,13 @@ export function profileRows(lines: BbiLineTrace[], domain: readonly [number, num
       if (x >= domain[0] && x <= domain[1]) at(gridX(x))[`f_${t.line}`] = t.bbi[f.i];
     }
   }
+  // Baris titik flagged di jendela lebar ikut memuat nilai bin-nya, supaya tooltip di sana tidak menampilkan garis kosong.
+  if (!raw) {
+    for (const r of rows.values()) {
+      const bin = rows.get(Math.floor(r.x) + 0.5);
+      for (const t of lines) if (r[t.line] === undefined && bin?.[t.line] !== undefined) r[t.line] = bin[t.line];
+    }
+  }
   const ranges = lines.map(traceRange);
   const lo = Math.min(...ranges.map((r) => r[0]));
   const hi = Math.max(...ranges.map((r) => r[1]));
