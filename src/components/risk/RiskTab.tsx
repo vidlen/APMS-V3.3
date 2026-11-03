@@ -73,6 +73,8 @@ export default function RiskTab({
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
   const [colorBy, setColorBy] = useState<ColorBy>("degree");
+  // Legend row clicked on the map view: other units dim. Keys are degree numbers or ICAO zone names.
+  const [highlight, setHighlight] = useState<string | null>(null);
   // Only variant B is selectable now; variant A survives solely in the
   // comparison panel (resultsA below).
   const likelihoodSource = DEFAULT_LIKELIHOOD_SOURCE;
@@ -185,17 +187,9 @@ export default function RiskTab({
               results={results}
               selectedUnit={selectedUnit}
               onSelectUnit={setSelectedUnit}
-              selectedCell={selectedCell}
+              highlight={highlight}
               colorBy={colorBy}
             />
-            {selectedCell && (
-              <button
-                onClick={() => setSelectedCell(null)}
-                className="panel-surface absolute top-3 right-3 z-10 h-8 px-3 rounded-md text-xs font-medium text-primary"
-              >
-                Cell {selectedCell} &middot; Clear
-              </button>
-            )}
           </div>
 
           <aside className="shrink-0 md:w-[440px] max-h-[50%] md:max-h-none overflow-y-auto custom-scrollbar bg-card border-t md:border-t-0 md:border-l border-border">
@@ -228,9 +222,13 @@ export default function RiskTab({
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <h3 className="panel-label">
-                      {colorBy === "degree" ? "Fine-Kinney degree" : "ICAO zone"} &mdash; {results.length} units
+                      Map colour &mdash; {results.length} units
                     </h3>
-                    <ToggleGroup type="single" variant="outline" size="sm" value={colorBy} onValueChange={(v) => v && setColorBy(v as ColorBy)}>
+                    <ToggleGroup type="single" variant="outline" size="sm" value={colorBy} onValueChange={(v) => {
+                      if (!v) return;
+                      setColorBy(v as ColorBy);
+                      setHighlight(null);
+                    }}>
                       <ToggleGroupItem value="degree" title="Colour units by Fine-Kinney degree (R = L × F × C)">
                         Fine-Kinney
                       </ToggleGroupItem>
@@ -241,17 +239,24 @@ export default function RiskTab({
                   </div>
                   <ul>
                     {legend.map((row) => (
-                      <li key={row.key} className="hairline-row flex items-center gap-3 py-2 text-xs">
-                        <span className="w-3.5 h-3.5 rounded-sm shrink-0" style={{ backgroundColor: row.color }} />
-                        <span className="font-medium text-foreground shrink-0">{row.label}</span>
-                        <span className="text-muted-foreground truncate" title={row.detail}>{row.detail}</span>
-                        <span className="ml-auto font-mono tabular-nums text-foreground">{row.count}</span>
+                      <li key={row.key} className="hairline-row">
+                        <button
+                          onClick={() => setHighlight((prev) => (prev === row.key ? null : row.key))}
+                          aria-pressed={highlight === row.key}
+                          className={`w-full flex items-center gap-3 py-2 px-1 -mx-1 text-xs text-left rounded-sm transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${highlight === row.key ? "bg-secondary" : ""}`}
+                        >
+                          <span className="w-3.5 h-3.5 rounded-sm shrink-0" style={{ backgroundColor: row.color }} />
+                          <span className="font-medium text-foreground shrink-0">{row.label}</span>
+                          <span className="text-muted-foreground truncate" title={row.detail}>{row.detail}</span>
+                          <span className="ml-auto font-mono tabular-nums text-foreground">{row.count}</span>
+                        </button>
                       </li>
                     ))}
                   </ul>
-                  <p className="text-[11px] text-muted-foreground mt-2">Click a unit on the map for its score.</p>
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    Click a row to highlight its units on the map, or click a unit for its score.
+                  </p>
                 </div>
-                <IcaoMatrixPanel results={results} selectedCell={selectedCell} onSelectCell={handleSelectCell} />
               </div>
             )}
           </aside>
