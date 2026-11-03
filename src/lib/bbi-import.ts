@@ -343,6 +343,7 @@ export function buildBbi(files: BbiInputFile[], opt: BbiBuildOptions): BbiBuild 
   let maxDiffV13 = 0;
   const traces: BbiLineTrace[] = [];
   const zoneCounts = { Acceptable: 0, Excessive: 0, Unacceptable: 0, empty: 0 };
+  const flaggedNotes: string[] = [];
   let nPoints = 0;
   const pairsWithRun = new Set<Pair>();
   for (const m of meta) {
@@ -420,6 +421,11 @@ export function buildBbi(files: BbiInputFile[], opt: BbiBuildOptions): BbiBuild 
       if (z === null) nullZone.push(i);
       if (p.xp[i] < BBI_START_OF_RUN_M) startLast = i;
       zoneCounts[z ?? "empty"]++;
+    }
+    if (flagged.length > 0) {
+      const xs = flagged.map((f) => p.x06[f.i]);
+      const us = [...new Set(flagged.map((f) => p.unit[f.i]))];
+      flaggedNotes.push(`${m.code} ${flagged.length} (unit ${us.join(", ")}, ${Math.min(...xs)}–${Math.max(...xs)} m from threshold)`);
     }
     traces.push({
       line: m.code,
@@ -563,6 +569,7 @@ export function buildBbi(files: BbiInputFile[], opt: BbiBuildOptions): BbiBuild 
   };
 
   report.push(...reportLines(data, nPoints, zoneCounts));
+  report.push(`Flagged points: ${flaggedNotes.join("; ") || "none"}`);
   report.push(`Largest x error (V10): ${maxReconstruct.toFixed(4)} m`);
   report.push(`Largest differences: V6 ${maxDiffV6.toFixed(5)}, V12 ${maxDiffV12.toFixed(5)}, V13 ${opt.requireCompleteTrace ? maxDiffV13.toFixed(5) : "skipped"}`);
   return finish(data, trace);
