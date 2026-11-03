@@ -26,6 +26,8 @@ import {
   type SectionInventoryOverride,
   type SkidSurveyEntry,
   type SkidSurveyRunwayEntry,
+  type BbiSurveyEntry,
+  type BbiSurveyRunwayEntry,
 } from "@/lib/data-overrides";
 import type { RunwayId } from "@/types/skid";
 import { validateRepairLog, type RepairLogRecord } from "@/lib/repair-log";
@@ -239,6 +241,10 @@ interface DataContextValue {
   upsertSkidSurveyRunway: (surveyId: string, label: string, runway: RunwayId, entry: SkidSurveyRunwayEntry) => void;
   /** Removes a skid survey from the manifest. Blob files are left in place. */
   removeSkidSurvey: (surveyId: string) => void;
+  /** Adds or replaces one runway of an admin-imported BBI survey (draft only; Publish makes it public). */
+  upsertBbiSurveyRunway: (surveyId: string, label: string, runway: RunwayId, entry: BbiSurveyRunwayEntry) => void;
+  /** Removes a BBI survey from the manifest. Blob files are left in place. */
+  removeBbiSurvey: (surveyId: string) => void;
   /** Discards this browser's unpublished draft and returns to the published version. */
   resetDrafts: () => void;
   /** True while this browser holds edits that have not been published yet. */
@@ -409,7 +415,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const removeYear = useCallback((id: string) => {
     editOverrides((prev) => ({
-      ...prev, // keeps the year-less fields (repairLog, skidSurveys)
+      ...prev, // keeps the year-less fields (repairLog, skidSurveys, bbiSurveys)
       addedYears: prev.addedYears.filter((y) => y.id !== id),
       removedYears: SEED_YEARS.some((y) => y.id === id)
         ? Array.from(new Set([...prev.removedYears, id]))
@@ -476,6 +482,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [editOverrides],
   );
 
+  const upsertBbiSurveyRunway = useCallback(
+    (surveyId: string, label: string, runway: RunwayId, entry: BbiSurveyRunwayEntry) => {
+      editOverrides((prev) => {
+        const old: BbiSurveyEntry | undefined = prev.bbiSurveys?.[surveyId];
+        const next: BbiSurveyEntry = { id: surveyId, label, runways: { ...old?.runways, [runway]: entry } };
+        return { ...prev, bbiSurveys: { ...prev.bbiSurveys, [surveyId]: next } };
+      });
+    },
+    [editOverrides],
+  );
+
+  const removeBbiSurvey = useCallback(
+    (surveyId: string) => {
+      editOverrides((prev) => ({ ...prev, bbiSurveys: omitKey(prev.bbiSurveys ?? {}, surveyId) }));
+    },
+    [editOverrides],
+  );
+
   const resetDrafts = useCallback(() => {
     clearOverridesStorage();
     setHasDraft(false);
@@ -515,6 +539,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       resetRepairLogToSeed,
       upsertSkidSurveyRunway,
       removeSkidSurvey,
+      upsertBbiSurveyRunway,
+      removeBbiSurvey,
       resetDrafts,
       hasDraft,
       publishedStatus,
@@ -535,6 +561,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       resetRepairLogToSeed,
       upsertSkidSurveyRunway,
       removeSkidSurvey,
+      upsertBbiSurveyRunway,
+      removeBbiSurvey,
       resetDrafts,
       hasDraft,
       publishedStatus,

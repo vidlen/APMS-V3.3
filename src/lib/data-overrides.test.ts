@@ -11,7 +11,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeSectionRiskMeta, mergeSectionInventory, loadOverrides } from './data-overrides.ts';
+import { mergeSectionRiskMeta, mergeSectionInventory, loadOverrides, normalizeOverrides } from './data-overrides.ts';
 
 test('mergeSectionRiskMeta adds a field to an empty override', () => {
   const result = mergeSectionRiskMeta({}, { role: 'runway' });
@@ -83,4 +83,27 @@ test('loadOverrides drops an unknown field (sectionRehab, from v2.9) while keepi
   } finally {
     delete (globalThis as { localStorage?: unknown }).localStorage;
   }
+});
+
+test('J. normalizeOverrides keeps bbiSurveys while unknown fields are still dropped', () => {
+  const bbiSurveys = {
+    '2026-07': {
+      id: '2026-07',
+      label: 'Jul 2026',
+      runways: {
+        '06-24': {
+          unitsUrl: 'https://blob/u.json',
+          traceUrl: 'https://blob/t.json',
+          rawCsv: [{ role: 'points' as const, name: 'bbi_per_titik_web.csv', url: null, sha256: 'ab', bytes: 7024829 }],
+          date: '2026-07-01',
+          lines: ['P01_L'],
+          importedAt: '2026-11-03T00:00:00Z',
+        },
+      },
+    },
+  };
+  const result = normalizeOverrides({ bbiSurveys, sectionRehab: {} });
+  assert.deepEqual(result.bbiSurveys, bbiSurveys);
+  assert.ok(!('sectionRehab' in result));
+  assert.equal(normalizeOverrides({}).bbiSurveys, undefined);
 });

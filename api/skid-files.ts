@@ -9,8 +9,9 @@ import { handleUploadPresigned, type HandleUploadPresignedBody } from "@vercel/b
 const ENVIRONMENT = process.env.VERCEL_ENV ?? "development";
 
 // ---------------------------------------------------------------------------
-// Admin session check. COPIED from api/auth.ts (and api/overrides.ts) on purpose:
-// cookie name and signing scheme MUST stay identical - change one, change all.
+// Admin session check. COPIED on purpose across api/auth.ts, api/overrides.ts,
+// api/skid-files.ts and api/bbi-files.ts: cookie name and signing scheme MUST
+// stay identical - change one, change all.
 // ---------------------------------------------------------------------------
 const COOKIE_NAME = "apms_admin_session";
 

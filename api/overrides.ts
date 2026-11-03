@@ -22,8 +22,9 @@ const MAX_BYTES = 50 * 1024 * 1024;
 // ---------------------------------------------------------------------------
 // Admin session check. COPIED from api/auth.ts on purpose: keeping each
 // function self-contained avoids ESM import-path pitfalls on Vercel. The
-// cookie name and signing scheme MUST stay identical to api/auth.ts - if you
-// change one, change both.
+// cookie name and signing scheme MUST stay identical across api/auth.ts,
+// api/overrides.ts, api/skid-files.ts and api/bbi-files.ts - change one,
+// change all.
 // ---------------------------------------------------------------------------
 const COOKIE_NAME = "apms_admin_session";
 

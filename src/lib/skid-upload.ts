@@ -7,15 +7,15 @@ import type { RunwayBuild } from "@/lib/skid-import";
 
 const API_URL = "/api/skid-files";
 
-async function sha256Hex(data: BufferSource): Promise<string> {
+export async function sha256Hex(data: BufferSource): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-const safeCsvName = (name: string) => `${name.replace(/\.csv$/i, "").replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 80) || "file"}.csv`;
+export const safeCsvName = (name: string) => `${name.replace(/\.csv$/i, "").replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 80) || "file"}.csv`;
 
 /** "production" / "preview" / "development": the folder this deployment publishes into (same as overrides.json). */
-async function blobEnv(): Promise<string> {
+export async function blobEnv(): Promise<string> {
   const res = await fetch("/api/overrides", { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`/api/overrides answered ${res.status}`);
   const { pathname } = (await res.json()) as { pathname: string };

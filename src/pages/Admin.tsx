@@ -12,8 +12,10 @@ import RepairLogPanel from "@/components/admin/RepairLogPanel";
 import PublishBar from "@/components/admin/PublishBar";
 import SkidImportPanel from "@/components/admin/SkidImportPanel";
 import SkidSurveyList from "@/components/admin/SkidSurveyList";
+import BbiImportPanel from "@/components/admin/BbiImportPanel";
+import BbiSurveyList from "@/components/admin/BbiSurveyList";
 
-type AdminTab = "pci" | "risk" | "skid";
+type AdminTab = "pci" | "risk" | "skid" | "bbi";
 
 // shortLabel keeps both tabs on one line on narrow viewports - see the same
 // fix on Home.tsx's WORKSPACE_TABS for why (full labels overflowed a 375px
@@ -22,6 +24,7 @@ const ADMIN_TABS: { id: AdminTab; label: string; shortLabel: string }[] = [
   { id: "pci", label: "Pavement Condition Index (PCI)", shortLabel: "PCI" },
   { id: "risk", label: "Risk Management", shortLabel: "Risk" },
   { id: "skid", label: "Skid Resistance", shortLabel: "Skid" },
+  { id: "bbi", label: "Roughness (BBI)", shortLabel: "BBI" },
 ];
 
 export default function Admin() {
@@ -97,8 +100,8 @@ export default function Admin() {
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <div className="max-w-4xl mx-auto space-y-6">
           <PublishBar />
-          {/* PCI years have nothing to do with skid surveys. */}
-          {activeTab !== "skid" && <YearManager selectedYear={selectedYear} onSelectYear={handleSelectYear} />}
+          {/* PCI years have nothing to do with skid or BBI surveys. */}
+          {activeTab !== "skid" && activeTab !== "bbi" && <YearManager selectedYear={selectedYear} onSelectYear={handleSelectYear} />}
 
           {activeTab === "pci" && (
             <>
@@ -129,6 +132,13 @@ export default function Admin() {
             <>
               <SkidSurveyList />
               <SkidImportPanel />
+            </>
+          )}
+
+          {activeTab === "bbi" && (
+            <>
+              <BbiSurveyList />
+              <BbiImportPanel />
             </>
           )}
         </div>

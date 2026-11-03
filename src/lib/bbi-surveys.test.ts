@@ -1,10 +1,39 @@
 /**
- * bbi-surveys.test.ts — manifest survei BBI (brief §10.2 uji I). Jalankan: npm test
+ * bbi-surveys.test.ts — manifest survei BBI dan aturan pathname upload (brief §10.2 uji I, K). Jalankan: npm test
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { bbiUploadRule } from "../../api/bbi-files.ts";
 import type { BbiSurveyEntry } from "./data-overrides.ts";
 import { listBbiSurveys } from "./bbi-surveys.ts";
+
+test("K. bbiUploadRule menerima hanya pathname BBI yang sah", () => {
+  const ok = [
+    ["apms/production/bbi/2026-07/units-06-24-0123456789ab.json", "application/json"],
+    ["apms/production/bbi/2026-07/trace-07L-25R-0123456789ab.json", "application/json"],
+    ["apms/production/bbi/2026-07/raw/0123456789ab-bbi_per_unit_web.csv", "text/csv"],
+  ] as const;
+  for (const [p, type] of ok) {
+    const rule = bbiUploadRule(p, "production");
+    assert.equal(rule?.contentType, type, p);
+    assert.equal(rule?.maxBytes, 5 * 1024 * 1024, p);
+  }
+  const bad = [
+    "apms/production/overrides.json",
+    "apms/production/bbi/2026-07/../units-06-24-0123456789ab.json",
+    "apms/production/bbi/../../overrides.json",
+    "apms/preview/bbi/2026-07/units-06-24-0123456789ab.json", // env lain
+    "apms/production/bbi/2026-07/units-06-24-0123456789a.json", // hash 11
+    "apms/production/bbi/2026-07/units-06-24-0123456789AB.json", // bukan hex huruf kecil
+    "apms/production/bbi/2026-07/units-05-23-0123456789ab.json", // runway lain
+    "apms/production/skid/2026-07/units-06-24-0123456789ab.json", // folder skid
+    "apms/production/bbi/2026-07/units-06-24-0123456789ab.csv", // ekstensi lain
+    "apms/production/bbi/2026-07/raw/0123456789ab-x.json",
+    "apms/production/bbi/2026-07/raw/0123456789ab-a b.csv", // spasi
+    "apms/production/bbi/2026-07/raw/0123456789ab-.csv/../x.csv",
+  ];
+  for (const p of bad) assert.equal(bbiUploadRule(p, "production"), null, p);
+});
 
 const entry = (id: string, label: string, rw: "06-24" | "07L-25R", date: string): BbiSurveyEntry => ({
   id,
