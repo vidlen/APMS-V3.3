@@ -11,6 +11,10 @@ This version of APMS is created for public use and view
 This tab features a layout of Soekarno-Hatta International Airport that consist of 75 branches.  This tab features informations such as PCI valeu, PCN value, Dimension, and Last Major Construction Year.  This tab shows user of the current condition of airside pavement in Soekarno-Hatta International Airport.  
 
 
+# Roughness (BBI)
+This tab shows the Boeing Bump Index of RWY 06/24 per sample unit, with the 0.25 m profile of each measured line; the seed files are rebuilt from the BBI package CSVs with `npm run bbi:seed`.
+
+
 # Risk Management
 This tab feautures calculation of risk using two methods. One method is derived from Safety Management Manual and Safety Risk Matrix which are introduced in ICAO Doc 9859. The other method used is Fine-Kinney method which calculated risk using empirical equation.
 
