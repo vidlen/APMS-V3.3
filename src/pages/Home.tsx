@@ -26,9 +26,9 @@ import { BBI_URL_KEYS } from "@/lib/bbi-url";
 import { TEXTURE_URL_KEYS } from "@/lib/texture-url";
 
 // Raised from 640 after measuring the actual content: the workspace tab
-// bar's full labels alone need 875px of scrollWidth (907px of viewport
-// once its px-4 padding is counted; re-measured with the fifth tab,
-// Macrotexture, 4 Nov 2026). 940 gives that a safety margin. 640 was
+// bar's full labels alone need 755px (787px of viewport once its px-4
+// padding is counted; re-measured with five equal-column tabs, 4 Nov
+// 2026). 940 gives that a safety margin. 640 was
 // "phone vs. not phone," not "does the desktop chrome actually fit."
 // Keep in sync with src/hooks/useNarrowViewport.ts's copy of this constant.
 const NARROW_BREAKPOINT = 940;
@@ -330,28 +330,28 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Workspace tabs */}
+      {/* Workspace tabs: equal columns, so the middle tab sits on the page centre. Labels differ in length (the PCI
+          one is twice the others), so a centred row of natural-width tabs has equal margins but an off-centre middle.
+          max-content keeps a label whole when the window is too narrow for equal columns (below about 1270px). */}
       <div
-        className="shrink-0 flex items-center justify-center gap-4 bg-card border-b border-border z-20 px-4"
+        className="shrink-0 grid grid-flow-col auto-cols-[minmax(max-content,1fr)] overflow-x-auto bg-card border-b border-border z-20 px-4"
         role="tablist"
       >
-        <div className={`flex items-center overflow-x-auto ${isNarrow ? "gap-5" : "gap-[30px]"}`}>
-          {WORKSPACE_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => switchTab(tab.id)}
-              aria-selected={activeTab === tab.id}
-              role="tab"
-              className={`shrink-0 py-2.5 font-condensed text-[12.5px] font-semibold tracking-[.13em] uppercase border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
-                activeTab === tab.id
-                  ? "text-foreground border-b-primary"
-                  : "text-muted-foreground border-b-transparent hover:text-foreground"
-              }`}
-            >
-              {isNarrow ? tab.shortLabel : tab.label}
-            </button>
-          ))}
-        </div>
+        {WORKSPACE_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => switchTab(tab.id)}
+            aria-selected={activeTab === tab.id}
+            role="tab"
+            className={`py-2.5 font-condensed text-[12.5px] font-semibold tracking-[.13em] uppercase border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+              activeTab === tab.id
+                ? "text-foreground border-b-primary"
+                : "text-muted-foreground border-b-transparent hover:text-foreground"
+            }`}
+          >
+            {isNarrow ? tab.shortLabel : tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Body: map + docked sidebar, or a placeholder for modules still in development */}

@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 // Below this width, workspace/admin tabs switch to a short label and panels
 // default to collapsed/full-width. Keep this in sync with Home.tsx's own
 // copy of the constant - raised from 640 after measuring that the
-// full-label tab bar alone needs 907px of viewport including its padding
-// (five tabs, measured 4 Nov 2026).
+// full-label tab bar alone needs 787px of viewport including its padding
+// (five equal-column tabs, measured 4 Nov 2026).
 const NARROW_BREAKPOINT = 940;
 
 function isNarrow(): boolean {
