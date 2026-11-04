@@ -10,8 +10,8 @@ const ENVIRONMENT = process.env.VERCEL_ENV ?? "development";
 
 // ---------------------------------------------------------------------------
 // Admin session check. COPIED on purpose across api/auth.ts, api/overrides.ts,
-// api/skid-files.ts and api/bbi-files.ts: cookie name and signing scheme MUST
-// stay identical - change one, change all.
+// api/skid-files.ts, api/bbi-files.ts and api/texture-files.ts: cookie name and
+// signing scheme MUST stay identical - change one, change all.
 // ---------------------------------------------------------------------------
 const COOKIE_NAME = "apms_admin_session";
 

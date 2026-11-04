@@ -107,3 +107,25 @@ test('J. normalizeOverrides keeps bbiSurveys while unknown fields are still drop
   assert.ok(!('sectionRehab' in result));
   assert.equal(normalizeOverrides({}).bbiSurveys, undefined);
 });
+
+test('J (tekstur). normalizeOverrides keeps textureSurveys while unknown fields are still dropped', () => {
+  const textureSurveys = {
+    '2026-07': {
+      id: '2026-07',
+      label: 'Jul 2026',
+      runways: {
+        '07L-25R': {
+          url: 'https://blob/u.json',
+          rawCsv: [{ role: 'bands' as const, name: 'tekstur_per_band_07L25R.csv', url: null, sha256: 'ab', bytes: 5560000 }],
+          date: '2026-07-01',
+          lcmsSurveyId: '2061902896',
+          importedAt: '2026-11-04T00:00:00Z',
+        },
+      },
+    },
+  };
+  const result = normalizeOverrides({ textureSurveys, sectionRehab: {} });
+  assert.deepEqual(result.textureSurveys, textureSurveys);
+  assert.ok(!('sectionRehab' in result));
+  assert.equal(normalizeOverrides({}).textureSurveys, undefined);
+});

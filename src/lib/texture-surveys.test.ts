@@ -1,10 +1,40 @@
 /**
- * texture-surveys.test.ts — manifest survei tekstur (brief tekstur §10.2 uji I). Jalankan: npm test
+ * texture-surveys.test.ts — manifest survei tekstur dan aturan pathname upload (brief tekstur §10.2 uji I, K). Jalankan: npm test
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { textureUploadRule } from "../../api/texture-files.ts";
 import type { TextureSurveyEntry } from "./data-overrides.ts";
 import { listTextureSurveys } from "./texture-surveys.ts";
+
+test("K. textureUploadRule menerima hanya pathname tekstur yang sah", () => {
+  const ok = [
+    ["apms/production/texture/2026-07/units-06-24-0123456789ab.json", "application/json"],
+    ["apms/production/texture/2026-07/units-07L-25R-0123456789ab.json", "application/json"],
+    ["apms/production/texture/2026-07/raw/0123456789ab-cek_per_unit_0624.csv", "text/csv"],
+  ] as const;
+  for (const [p, type] of ok) {
+    const rule = textureUploadRule(p, "production");
+    assert.equal(rule?.contentType, type, p);
+    assert.equal(rule?.maxBytes, 5 * 1024 * 1024, p);
+  }
+  const bad = [
+    "apms/production/overrides.json",
+    "apms/production/texture/2026-07/../units-06-24-0123456789ab.json",
+    "apms/production/texture/../../overrides.json",
+    "apms/preview/texture/2026-07/units-06-24-0123456789ab.json", // env lain
+    "apms/production/texture/2026-07/units-06-24-0123456789a.json", // hash 11
+    "apms/production/texture/2026-07/units-06-24-0123456789AB.json", // bukan hex huruf kecil
+    "apms/production/texture/2026-07/units-05-23-0123456789ab.json", // runway lain
+    "apms/production/texture/2026-07/trace-06-24-0123456789ab.json", // tekstur tidak punya trace
+    "apms/production/bbi/2026-07/units-06-24-0123456789ab.json", // folder bbi
+    "apms/production/texture/2026-07/units-06-24-0123456789ab.csv", // ekstensi lain
+    "apms/production/texture/2026-07/raw/0123456789ab-x.json",
+    "apms/production/texture/2026-07/raw/0123456789ab-a b.csv", // spasi
+    "apms/production/texture/2026-07/raw/0123456789ab-.csv/../x.csv",
+  ];
+  for (const p of bad) assert.equal(textureUploadRule(p, "production"), null, p);
+});
 
 const entry = (id: string, label: string, rw: "06-24" | "07L-25R", date: string): TextureSurveyEntry => ({
   id,
