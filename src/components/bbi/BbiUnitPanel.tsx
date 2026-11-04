@@ -6,8 +6,10 @@ import { START_OF_RUN_HINT, bbiText, fmtX, offsetText, type BbiRunwayMeta } from
 const num = (v: number | null, d: number) => (v === null ? "—" : v.toFixed(d));
 const th = "font-medium py-1.5 px-1 text-right align-bottom whitespace-nowrap";
 const thLeft = "font-medium py-1.5 px-1 text-left align-bottom whitespace-nowrap";
+const thCenter = "font-medium py-1.5 px-1 text-center align-bottom whitespace-nowrap";
 const td = "py-1.5 px-1 text-right font-mono whitespace-nowrap";
 const tdLeft = "py-1.5 px-1 text-left font-mono whitespace-nowrap";
+const tdCenter = "py-1.5 px-1 text-center font-mono whitespace-nowrap";
 
 interface BbiUnitPanelProps {
   data: BbiRunwayData;
@@ -74,7 +76,7 @@ export default function BbiUnitPanel({ data, runway, unit, onClose, onShowInProf
                   <tr className="text-[10px] uppercase tracking-[.05em] text-muted-foreground border-b border-border">
                     <th className={thLeft}>Line</th>
                     <th className={thLeft}>Dir</th>
-                    <th className={th}>Offset*</th>
+                    <th className={thCenter}>Offset*</th>
                     <th className={th}>BBI</th>
                     <th className={thLeft}>Zone</th>
                     <th className={th}>H (cm)</th>
@@ -101,7 +103,7 @@ export default function BbiUnitPanel({ data, runway, unit, onClose, onShowInProf
                           </span>
                         </td>
                         <td className={tdLeft}>{meta.direction}</td>
-                        <td className={td}>{offsetText(meta.offset_m)}</td>
+                        <td className={tdCenter}>{offsetText(meta.offset_m)}</td>
                         {measured ? (
                           <>
                             <td className={td}>{bbiText(l.bbi_max)}</td>

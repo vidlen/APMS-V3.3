@@ -86,12 +86,12 @@ export default function StatsBar({ sections, onOpenTable }: StatsBarProps) {
             );
           })}
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
           {pciCategories.map((cat) => {
             const count = stats.counts[cat.label] ?? 0;
             if (count === 0) return null;
             return (
-              <div key={cat.label} className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
+              <div key={cat.label} className="flex items-center gap-1 text-[10px] text-muted-foreground">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
                 <span className="text-foreground font-medium font-mono tabular-nums">{count}</span>
                 <span>{cat.label}</span>
@@ -99,7 +99,7 @@ export default function StatsBar({ sections, onOpenTable }: StatsBarProps) {
             );
           })}
           {stats.counts[NOT_SURVEYED.label] > 0 && (
-            <div className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground pl-3 border-l border-border">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground pl-2 border-l border-border">
               <span className="pci-swatch pci-swatch--not-surveyed w-2 h-2 rounded-full shrink-0" />
               <span className="text-foreground font-medium font-mono tabular-nums">
                 {stats.counts[NOT_SURVEYED.label]}
