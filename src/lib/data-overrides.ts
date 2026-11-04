@@ -130,6 +130,8 @@ export interface DataOverrides {
   skidSurveys?: Record<string, SkidSurveyEntry>;
   /** Admin-imported BBI surveys (manifest only, see BbiSurveyRunwayEntry). The June 2026 seed is virtual and not stored here. */
   bbiSurveys?: Record<string, BbiSurveyEntry>;
+  /** Admin-imported texture surveys (manifest only, see TextureSurveyRunwayEntry). The June 2026 seed is virtual and not stored here. */
+  textureSurveys?: Record<string, TextureSurveyEntry>;
 }
 
 // Merges a partial patch into an existing override object. A key explicitly
@@ -194,6 +196,7 @@ export function normalizeOverrides(raw: unknown): DataOverrides {
     repairLog: parsed.repairLog as RepairLogRecord[] | undefined,
     skidSurveys: parsed.skidSurveys,
     bbiSurveys: parsed.bbiSurveys,
+    textureSurveys: parsed.textureSurveys,
   };
 }
 
