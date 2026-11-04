@@ -1,0 +1,56 @@
+==== RWY 06/24 ====
+Files
+  bands: tekstur_per_band_0624.csv · 4f1db53f4ba4 · 32750 rows
+  units-check: cek_per_unit_0624.csv · 7d0f7cfbc083 · 300 rows
+  passes: ringkasan_lintasan_0624.csv · 2a1560e133ce · 23 rows
+  photo-check: cek_foto_0624.csv · a524e59a70cb · 262 rows
+Runway: 06-24; axis length 2999.43 m; LCMS survey id 2062903736
+Values: 32750; segments 6550; passes 23
+Status: valid 32237, dropout 11, luar 467, belok 35; dropout 0.034%
+Coverage: 297 of 300 units have keel values; none in 1, 299–300
+Keel values per unit (min / median / max): 12 / 21 / 24
+Zones
+  1 (06 end, units 1–100): n 2028, MPD 1.0341, ETD 1.0273, FAA measure; lowest unit 14 (0.6865); units < 0.76: 7; units ≥ 1.14: 13
+  2 (Middle, units 101–200): n 2101, MPD 0.9496, ETD 0.9597, FAA measure; lowest unit 152 (0.8011); units < 0.76: 0; units ≥ 1.14: 19
+  3 (24 end, units 201–300): n 2155, MPD 1.0374, ETD 1.0299, FAA measure; lowest unit 295 (0.7305); units < 0.76: 7; units ≥ 1.14: 18
+Runway keel: n 6284, MPD 1.0070, ETD 1.0056
+Runway full width: n 32237, MPD 0.7647, ETD 0.8117
+Unit keel ETD: lowest 0.6865 (unit 14), median 0.9916, highest 1.7600 (unit 32)
+Units below 0.76 mm: 14 (5–6, 11–15, 283–287, 289, 295)
+Unit full-width ETD: min 0.6981, max 1.2462
+Display classes: ok 50, d4 31, d3 93, d2 60, d1 49, plan 14, gap 0, correct 0, noData 3
+k_flags minimum: true 0, false 297, null 3
+k_flags planning: true 14, false 283, null 3
+Values above 2 mm: 262 (110 in the keel), in 42 units; most in unit 31 (14), unit 32 (12), unit 16 (11)
+Units with keel values above 2 mm: 27 (22–26, 30–32, 179–180, 184, 201–203, 205–208, 256–259, 261–265)
+Lanes (all): Σ n 32237; highest 1.5..2 m, MPD 1.286, n 72; lane 0..0.5 m MPD 0.987, n 225; empty 0
+Largest V11 differences (300 units): keel MPD 0.00050, keel SD 0.00050, full MPD 0.00050 mm
+
+==== RWY 07L/25R ====
+Files
+  bands: tekstur_per_band_07L25R.csv · 9c7a09f8b3e7 · 36615 rows
+  units-check: cek_per_unit_07L25R.csv · eb851b89b17d · 360 rows
+  passes: ringkasan_lintasan_07L25R.csv · 7c770fe9b0f3 · 23 rows
+  photo-check: cek_foto_07L25R.csv · ccb9185c0b9a · 0 rows
+Runway: 07L-25R; axis length 3600.82 m; LCMS survey id 2061902896
+Values: 36615; segments 7323; passes 23
+Status: valid 36562, dropout 18, luar 35, belok 0; dropout 0.049%
+Coverage: 360 of 360 units have keel values; none in none
+Keel values per unit (min / median / max): 14 / 24 / 34
+Zones
+  1 (07L end, units 1–120): n 2333, MPD 0.8475, ETD 0.8780, FAA measure; lowest unit 7 (0.7473); units < 0.76: 1; units ≥ 1.14: 0
+  2 (Middle, units 121–240): n 2904, MPD 0.7452, ETD 0.7962, FAA measure; lowest unit 151 (0.7510); units < 0.76: 5; units ≥ 1.14: 0
+  3 (25R end, units 241–360): n 3236, MPD 0.8931, ETD 0.9145, FAA measure; lowest unit 350 (0.7674); units < 0.76: 0; units ≥ 1.14: 0
+Runway keel: n 8473, MPD 0.8299, ETD 0.8639
+Runway full width: n 36562, MPD 0.7187, ETD 0.7749
+Unit keel ETD: lowest 0.7473 (unit 7), median 0.8287, highest 1.1120 (unit 299)
+Units below 0.76 mm: 6 (7, 151, 194–196, 220)
+Unit full-width ETD: min 0.7010, max 0.9109
+Display classes: ok 0, d4 13, d3 52, d2 79, d1 210, plan 6, gap 0, correct 0, noData 0
+k_flags minimum: true 0, false 360, null 0
+k_flags planning: true 6, false 354, null 0
+Values above 2 mm: 0 (0 in the keel), in 0 units
+Units with keel values above 2 mm: 0 (none)
+Lanes (all): Σ n 36562; highest 0..0.5 m, MPD 0.930, n 312; lane 0..0.5 m MPD 0.930, n 312; empty 2 (-30..-29.5 m, -29.5..-29 m)
+Largest V11 differences (360 units): keel MPD 0.00050, keel SD 0.00050, full MPD 0.00050 mm
+
