@@ -1,2 +1,5 @@
 # Fixture BBI harus identik byte dengan sumbernya (CRLF, brief §10.1).
 src/lib/__fixtures__/bbi/*.csv -text
+
+# Fixture tekstur harus identik byte dengan sumbernya (CRLF, brief tekstur §10.1).
+src/lib/__fixtures__/texture/*.csv -text

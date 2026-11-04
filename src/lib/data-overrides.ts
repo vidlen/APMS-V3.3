@@ -4,6 +4,7 @@ import type { SectionData } from "@/lib/pci-utils";
 import type { RepairLogRecord } from "@/lib/repair-log";
 import type { LaneCode, RunwayId } from "@/types/skid";
 import type { BbiFileRole } from "@/types/bbi";
+import type { TextureFileRole } from "@/types/texture";
 
 export interface AddedYearMeta {
   id: string;
@@ -86,6 +87,23 @@ export interface BbiSurveyEntry {
   id: string; // "2026-06", "2027-06", ...
   label: string; // "Jun 2026"
   runways: Partial<Record<RunwayId, BbiSurveyRunwayEntry>>;
+}
+
+// One runway of an admin-imported texture survey (Admin -> Macrotexture). Same idea again:
+// the JSON file lives in Vercel Blob, only its URL is kept here.
+export interface TextureSurveyRunwayEntry {
+  url: string;
+  /** url is null for the per-band CSV: the 07L/25R file exceeds the 5 MB upload limit, so only its hash is recorded. */
+  rawCsv: { role: TextureFileRole; name: string; url: string | null; sha256: string; bytes: number }[];
+  date: string; // "YYYY-MM-DD"
+  lcmsSurveyId: string | null;
+  importedAt: string; // ISO
+}
+
+export interface TextureSurveyEntry {
+  id: string; // "2026-06", "2027-06", ...
+  label: string; // "Jun 2026"
+  runways: Partial<Record<RunwayId, TextureSurveyRunwayEntry>>;
 }
 
 // Everything an admin can change, stored as a compact set of deltas rather
