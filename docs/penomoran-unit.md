@@ -35,7 +35,7 @@ Sejak pembalikan muatan 2 November 2026 (bagian "Arah muatan PCI"), **nomor unit
 - RWY 06/24: terverifikasi dari gambar laporan PCI 2026 (unit 1–20) dan nilai acuan 2025 (unit 16 = 77,02, unit 265 = 66,59, unit 221 = 96,32).
 - RWY 07L/25R: disimpulkan dari catatan penomoran sebelumnya. Cocokkan satu unit dengan Excel sebelum menyandingkan per nomor.
 - Paket `BBI_RWY0624` (MATLAB/ProFAA) masih berlabel lama: `unit_web = 301 − unit_lama`. Jalankan `node konversi_unit_web.mjs` di folder paket untuk mendapat `hasil_bbi/*_web.csv`. Berkas web `public/data/bbi-06-24-2026*.json` sudah memakai penomoran web (unit 1 di ujung 06); medan `unit_source` menyimpan nomor lama untuk pelacakan ke paket.
-- Paket `TEKSTUR_2026` sudah memakai penomoran web.
+- Paket `TEKSTUR_2026` sudah memakai penomoran web. Berkas web `public/data/texture-*-2026.json` juga memakai penomoran web (unit 1 di ujung 06 / 07L), dan `station_mid_m` mengikuti konvensi skid (dari ambang 24 / 25R). Sumbu tekstur tidak sama persis dengan sumbu BBI dan skid, jadi antar-tab sandingkan data lewat nomor unit, jangan lewat jarak.
 - Nomor acuan di spesifikasi dan brief lama (unit 16, 221, 258, 265 pada 06/24; unit 59, 100, 301 pada 07L/25R) ditulis pada berbagai konvensi. Cocokkan lewat nilai PCI, jangan lewat nomor.
 
 ## Apa yang berubah dan tidak

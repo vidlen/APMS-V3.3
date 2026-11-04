@@ -15,6 +15,10 @@ This tab features a layout of Soekarno-Hatta International Airport that consist 
 This tab shows the Boeing Bump Index of RWY 06/24 per sample unit, with the 0.25 m profile of each measured line; the seed files are rebuilt from the BBI package CSVs with `npm run bbi:seed`.
 
 
+# Macrotexture
+This tab shows the LCMS macrotexture of RWY 06/24 and 07L/25R per sample unit, with the FAA verdict per runway zone; the seed files are rebuilt from the TEKSTUR_2026 package CSVs with `npm run texture:seed`.
+
+
 # Risk Management
 This tab feautures calculation of risk using two methods. One method is derived from Safety Management Manual and Safety Risk Matrix which are introduced in ICAO Doc 9859. The other method used is Fine-Kinney method which calculated risk using empirical equation.
 
