@@ -4,8 +4,10 @@ import type { BbiRunwayData, BbiUnit } from "@/types/bbi";
 import { START_OF_RUN_HINT, bbiText, fmtX, offsetText, type BbiRunwayMeta } from "./bbi-ui";
 
 const num = (v: number | null, d: number) => (v === null ? "—" : v.toFixed(d));
-const th = "font-medium py-1.5 px-1 text-right align-bottom";
+const th = "font-medium py-1.5 px-1 text-right align-bottom whitespace-nowrap";
+const thLeft = "font-medium py-1.5 px-1 text-left align-bottom whitespace-nowrap";
 const td = "py-1.5 px-1 text-right font-mono whitespace-nowrap";
+const tdLeft = "py-1.5 px-1 text-left font-mono whitespace-nowrap";
 
 interface BbiUnitPanelProps {
   data: BbiRunwayData;
@@ -70,16 +72,16 @@ export default function BbiUnitPanel({ data, runway, unit, onClose, onShowInProf
               <table className="w-full text-[11px] tabular-nums">
                 <thead>
                   <tr className="text-[10px] uppercase tracking-[.05em] text-muted-foreground border-b border-border">
-                    <th className={`${th} text-left`}>Line</th>
-                    <th className={`${th} text-left`}>Dir</th>
+                    <th className={thLeft}>Line</th>
+                    <th className={thLeft}>Dir</th>
                     <th className={th}>Offset*</th>
                     <th className={th}>BBI</th>
-                    <th className={`${th} text-left`}>Zone</th>
+                    <th className={thLeft}>Zone</th>
                     <th className={th}>H (cm)</th>
                     <th className={th}>L (m)</th>
                     <th className={th}>SE (m)</th>
                     <th className={th}>&gt;1.0</th>
-                    <th className={th}>At (m from {runway.startEnd})</th>
+                    <th className={th}>At (m)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -88,7 +90,7 @@ export default function BbiUnitPanel({ data, runway, unit, onClose, onShowInProf
                     const measured = l.bbi_max !== null;
                     return (
                       <tr key={l.line} className={`hairline-row ${g.line === l.line ? "bg-secondary font-medium" : ""}`}>
-                        <td className={`${td} text-left`}>
+                        <td className={tdLeft}>
                           <span className="inline-flex items-center gap-1">
                             {l.line}
                             {l.start_of_run && (
@@ -98,12 +100,12 @@ export default function BbiUnitPanel({ data, runway, unit, onClose, onShowInProf
                             )}
                           </span>
                         </td>
-                        <td className={`${td} text-left`}>{meta.direction}</td>
+                        <td className={tdLeft}>{meta.direction}</td>
                         <td className={td}>{offsetText(meta.offset_m)}</td>
                         {measured ? (
                           <>
                             <td className={td}>{bbiText(l.bbi_max)}</td>
-                            <td className={`${td} text-left font-sans`}>{l.zone ?? "—"}</td>
+                            <td className={tdLeft}>{l.zone ?? "—"}</td>
                             <td className={td}>{num(l.h_cm, 2)}</td>
                             <td className={td}>{num(l.bump_length_m, 2)}</td>
                             <td className={td}>{num(l.straightedge_m, 2)}</td>
@@ -121,7 +123,10 @@ export default function BbiUnitPanel({ data, runway, unit, onClose, onShowInProf
                 </tbody>
               </table>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1">* pass offset from pass 1, + = south; provisional</p>
+            <p className="text-[10px] text-muted-foreground mt-1.5">
+              H bump height · L bump length · SE straightedge · &gt;1.0 share of points above BBI 1.0 · At position of the line's maximum, metres from threshold {runway.startEnd}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">* pass offset from pass 1, + = south; provisional</p>
           </div>
 
           <button
