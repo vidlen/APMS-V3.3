@@ -19,7 +19,7 @@ const CSS = `
   @media print {
     html, body { height: auto !important; width: auto !important; overflow: visible !important; background: #fff !important; }
     #root { display: none !important; }
-    .skid-print-root { display: block; color: #1f1f1f; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .skid-print-root { display: block; color: #1f1f1f; font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
     .skid-print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .skid-print-page { break-after: page; page-break-after: always; }
     .skid-print-page:last-child { break-after: auto; page-break-after: auto; }

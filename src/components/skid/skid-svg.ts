@@ -18,7 +18,7 @@ export interface LegendItem {
 
 const NS = "http://www.w3.org/2000/svg";
 const PAD = 12;
-const FONT = "system-ui, -apple-system, 'Segoe UI', sans-serif";
+const FONT = "'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 function el<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number>, text?: string): SVGElementTagNameMap[K] {
   const node = document.createElementNS(NS, tag);

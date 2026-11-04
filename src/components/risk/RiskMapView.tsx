@@ -67,7 +67,7 @@ export default function RiskMapView({ units, results, selectedUnit, onSelectUnit
         }),
         text: new Text({
           text: String(unit ?? ""),
-          font: '600 10px "Fira Sans", system-ui, sans-serif',
+          font: '600 10px "Plus Jakarta Sans", system-ui, sans-serif',
           fill: new Fill({ color: "#111" }),
           stroke: new Stroke({ color: "rgba(255,255,255,0.85)", width: 2 }),
           overflow: false,

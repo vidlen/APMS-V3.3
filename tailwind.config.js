@@ -1,3 +1,7 @@
+// One typeface across the app. `mono` and `condensed` stay as class names so the markup need not change: `mono` is the
+// number style (tabular figures keep digits lined up in columns), `condensed` the label style.
+const JAKARTA = ['"Plus Jakarta Sans"', "system-ui", "sans-serif"];
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
@@ -5,9 +9,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
-        condensed: ['"Space Grotesk"', "system-ui", "sans-serif"],
+        sans: JAKARTA,
+        mono: [JAKARTA.join(", "), { fontFeatureSettings: '"tnum"' }],
+        condensed: JAKARTA,
       },
       colors: {
         border: "hsl(var(--border))",

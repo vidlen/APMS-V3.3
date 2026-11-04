@@ -127,7 +127,7 @@ export default function MapView({
         }),
         text: new Text({
           text: String(props["sampleUnit"] ?? ""),
-          font: '600 10px "Fira Sans", system-ui, sans-serif',
+          font: '600 10px "Plus Jakarta Sans", system-ui, sans-serif',
           fill: new Fill({ color: "#111" }),
           stroke: new Stroke({ color: "rgba(255,255,255,0.85)", width: 2 }),
           overflow: false,

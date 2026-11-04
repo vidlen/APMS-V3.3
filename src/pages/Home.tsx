@@ -26,9 +26,9 @@ import { BBI_URL_KEYS } from "@/lib/bbi-url";
 import { TEXTURE_URL_KEYS } from "@/lib/texture-url";
 
 // Raised from 640 after measuring the actual content: the workspace tab
-// bar's full labels alone need 755px (787px of viewport once its px-4
-// padding is counted; re-measured with five equal-column tabs, 4 Nov
-// 2026). 940 gives that a safety margin. 640 was
+// bar's full labels alone need 794px (826px of viewport once its px-4
+// padding is counted; re-measured with five equal-column tabs in Plus
+// Jakarta Sans, 4 Nov 2026). 940 gives that a safety margin. 640 was
 // "phone vs. not phone," not "does the desktop chrome actually fit."
 // Keep in sync with src/hooks/useNarrowViewport.ts's copy of this constant.
 const NARROW_BREAKPOINT = 940;
@@ -332,7 +332,7 @@ export default function Home() {
 
       {/* Workspace tabs: equal columns, so the middle tab sits on the page centre. Labels differ in length (the PCI
           one is twice the others), so a centred row of natural-width tabs has equal margins but an off-centre middle.
-          max-content keeps a label whole when the window is too narrow for equal columns (below about 1270px). */}
+          max-content keeps a label whole when the window is too narrow for equal columns (below about 1340px). */}
       <div
         className="shrink-0 grid grid-flow-col auto-cols-[minmax(max-content,1fr)] overflow-x-auto bg-card border-b border-border z-20 px-4"
         role="tablist"
