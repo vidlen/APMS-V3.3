@@ -84,12 +84,13 @@ export default function BbiTab() {
   );
   const clearSelection = useCallback(() => setSelectedUnit(null), []);
 
-  // "Show in profile" in the unit panel: One line view on that line, then scroll to it.
+  // "Show in profile" in the unit panel: One line view on that line, then jump to it. Not a smooth scroll: the
+  // re-render and replaceState that follow this click cancel the animation before it moves (seen in Chromium).
   const showInProfile = useCallback((line: string, domain: [number, number]) => {
     setView("one");
     setLines([line]);
     setXDomain(domain);
-    document.getElementById("bbi-profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("bbi-profile")?.scrollIntoView({ block: "start" });
   }, []);
 
   // Compare needs at least two lines to be useful (start with the other side of the pass); One line keeps just the first.

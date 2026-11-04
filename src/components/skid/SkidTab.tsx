@@ -114,12 +114,13 @@ export default function SkidTab() {
   );
   const clearSelection = useCallback(() => setSelected(null), []);
 
-  // "Show in profile" in the unit panel: One lane view on that unit, then scroll to it.
+  // "Show in profile" in the unit panel: One lane view on that unit, then jump to it. Not a smooth scroll: the
+  // re-render and replaceState that follow this click cancel the animation before it moves (seen in Chromium).
   const showInProfile = useCallback((lane: LaneCode, domain: [number, number]) => {
     setProfileView("one");
     setProfileLanes([lane]);
     setXDomain(domain);
-    document.getElementById("skid-profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("skid-profile")?.scrollIntoView({ block: "start" });
   }, []);
 
   if (error) {
