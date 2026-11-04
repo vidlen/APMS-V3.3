@@ -166,15 +166,15 @@ export default function BbiTab() {
 
   const unit = selectedUnit === null ? null : (data.units[selectedUnit - 1] ?? null);
   const panel = <BbiUnitPanel data={data} runway={runwayMeta} unit={unit} onClose={clearSelection} onShowInProfile={showInProfile} />;
-  // The page reads summary → map → legend → profile, then the About section.
+  // The page reads map → legend → summary → profile (map first, as in Skid), then the About section.
   const main = (
     <>
       {toolbar}
-      <BbiSummary data={data} onSelectUnit={handleSelect} />
       <div className="relative shrink-0 h-[46vh] min-h-[300px]">
         <BbiMap bundle={bundle} selectedUnit={selectedUnit} onSelect={handleSelect} />
       </div>
       <BbiLegend data={data} />
+      <BbiSummary data={data} onSelectUnit={handleSelect} />
       <BbiProfile
         data={data}
         runway={runwayMeta}

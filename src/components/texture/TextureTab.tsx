@@ -142,10 +142,14 @@ export default function TextureTab() {
   const unit = selectedUnit === null ? null : (data.units[selectedUnit - 1] ?? null);
   // Keyed by unit so the folded table of values above 2 mm starts folded for each unit.
   const panel = <TextureUnitPanel key={unit?.unit} data={data} runway={runwayMeta} unit={unit} onClose={clearSelection} onShowInChart={showInChart} />;
-  // The page reads summary → zones → map → legend → along → across, then the About section.
+  // The page reads map → legend → summary → zones → along → across (map first, as in Skid), then the About section.
   const main = (
     <>
       {toolbar}
+      <div className="relative shrink-0 h-[46vh] min-h-[300px]">
+        <TextureMap bundle={bundle} selectedUnit={selectedUnit} zone={zone} onSelect={setSelectedUnit} />
+      </div>
+      <TextureLegend data={data} />
       <TextureSummary data={data} onSelectUnit={setSelectedUnit} />
       <div className="px-4 py-3 bg-card border-t border-border">
         <h3 className="panel-label mb-1.5">FAA verdict per zone</h3>
@@ -154,10 +158,6 @@ export default function TextureTab() {
           FAA judges the average texture depth of each runway zone (touchdown, midpoint, rollout). The runway is used in both directions, so the zones here are thirds by position.
         </p>
       </div>
-      <div className="relative shrink-0 h-[46vh] min-h-[300px]">
-        <TextureMap bundle={bundle} selectedUnit={selectedUnit} zone={zone} onSelect={setSelectedUnit} />
-      </div>
-      <TextureLegend data={data} />
       <TextureAlongChart data={data} runway={runwayMeta} selectedUnit={unit} zone={zone} mode={mode} onMode={setMode} xDomain={xDomain} onXDomain={setXDomain} narrow={narrow} onSelectUnit={setSelectedUnit} />
       <TextureCrossSection data={data} zone={zone} onZone={setZone} narrow={narrow} />
     </>
